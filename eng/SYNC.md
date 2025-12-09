@@ -231,11 +231,11 @@ The same workflow files are synced to repositories via the sync, ensuring all re
 
 ### Example Templates
 
-| Template | Description |
-|----------|-------------|
+| Template                | Description                               |
+|-------------------------|-------------------------------------------|
 | `dependency-review.yml` | Scans PR dependencies for vulnerabilities |
-| `lint.yml` | Runs linting checks on code changes |
-| `ci.yml` | Continuous integration workflow |
+| `lint.yml`              | Runs linting checks on code changes       |
+| `ci.yml`                | Continuous integration workflow           |
 
 ---
 
@@ -256,11 +256,11 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 
 ### Examples
 
-| Workflow | Description |
-|----------|-------------|
+| Workflow                  | Description                                   |
+|---------------------------|-----------------------------------------------|
 | `__dependency-review.yml` | Runs dependency scanning with standard config |
-| `__lint.yml` | Shared linting workflow |
-| `__build.yml` | Shared build workflow |
+| `__lint.yml`              | Shared linting workflow                       |
+| `__build.yml`             | Shared build workflow                         |
 
 ### Workflow Relationship Diagram
 
@@ -329,14 +329,14 @@ Push to `main` branch. The sync workflow will automatically:
 
 The sync targets repositories defined in `.github/sync.yml`. Example structure:
 
-| Repository | Branch | Notes |
-|------------|--------|-------|
-| `radius-project/.github` | main | This repository (self-sync) |
-| `radius-project/main-project` | main | Main project repository |
-| `radius-project/docs` | **edge** | Custom branch example |
-| `radius-project/website` | main | |
-| `radius-project/samples` | **edge** | Custom branch example |
-| ... | ... | Add all repositories to sync |
+| Repository                    | Branch   | Notes                        |
+|-------------------------------|----------|------------------------------|
+| `radius-project/.github`      | main     | This repository (self-sync)  |
+| `radius-project/main-project` | main     | Main project repository      |
+| `radius-project/docs`         | **edge** | Custom branch example        |
+| `radius-project/website`      | main     |                              |
+| `radius-project/samples`      | **edge** | Custom branch example        |
+| ...                           | ...      | Add all repositories to sync |
 
 > **Note:** Use `@branch` syntax in `sync.yml` to specify non-default branches (e.g., `radius-project/docs@edge`).
 
