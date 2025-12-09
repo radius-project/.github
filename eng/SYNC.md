@@ -139,8 +139,8 @@ The sync workflow (`.github/workflows/sync.yml`) is triggered when:
 
 The sync uses a **GitHub App** for authentication (configured via secrets):
 
-- `SYNC_BOT_APP_ID`: The GitHub App ID
-- `SYNC_BOT_PRIVATE_KEY`: The GitHub App private key
+- `FILES_SYNC_BOT_APP_ID`: The GitHub App ID
+- `FILES_SYNC_BOT_PRIVATE_KEY`: The GitHub App private key
 
 This approach provides:
 
@@ -353,7 +353,7 @@ The sync targets repositories defined in `.github/sync.yml`. Example structure:
 ### PRs Not Created
 
 1. Check GitHub App permissions
-1. Verify secrets `SYNC_BOT_APP_ID` and `SYNC_BOT_PRIVATE_KEY` are set
+1. Verify secrets `FILES_SYNC_BOT_APP_ID` and `FILES_SYNC_BOT_PRIVATE_KEY` are set
 1. Review sync workflow logs for errors
 
 ### File Not Appearing in Target Repo
