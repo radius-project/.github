@@ -58,21 +58,21 @@ The `.github` repository serves as the **Single Source of Truth** (SSoT) for org
 flowchart TB
     subgraph central[".github Repository - Central Configuration Hub"]
         subgraph sources["Source Directories"]
-            sync_templates["sync-templates/\n(static files)"]
-            workflow_templates["workflow-templates/\n(workflow files)"]
+            sync_templates["sync-templates/<br/>(static files)"]
+            workflow_templates["workflow-templates/<br/>(workflow files)"]
         end
 
-        sync_config[".github/sync.yml\nSync Configuration"]
-        sync_workflow[".github/workflows/sync.yml\nSync Workflow"]
+        sync_config[".github/sync.yml<br/>Sync Configuration"]
+        sync_workflow[".github/workflows/sync.yml<br/>Sync Workflow"]
 
         sync_templates --> sync_config
         workflow_templates --> sync_config
         sync_config --> sync_workflow
     end
 
-    sync_workflow -->|"Triggered on push to main\n(when sync-related files change)"| sync_action
+    sync_workflow -->|"Triggered on push to main<br/>(when sync-related files change)"| sync_action
 
-    sync_action["PaddleHQ/repo-file-sync-action\nCreates PRs in target repositories"]
+    sync_action["PaddleHQ/repo-file-sync-action<br/>Creates PRs in target repositories"]
 
     sync_action --> repo_a["org/repo-a"]
     sync_action --> repo_b["org/repo-b"]
@@ -267,16 +267,16 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 ```mermaid
 flowchart LR
     subgraph central[".github Repository"]
-        reusable["__example-workflow.yml\n(Reusable Workflow)"]
-        template["workflow-templates/\nexample-workflow.yml\n(Template - calls reusable)"]
+        reusable["__example-workflow.yml<br/>(Reusable Workflow)"]
+        template["workflow-templates/<br/>example-workflow.yml<br/>(Template - calls reusable)"]
     end
 
     subgraph target["Target Repository"]
-        synced[".github/workflows/\nexample-workflow.yml\n(Synced from template)"]
+        synced[".github/workflows/<br/>example-workflow.yml<br/>(Synced from template)"]
     end
 
-    template -->|"Synced via\nrepo-file-sync-action"| synced
-    synced -->|"uses: org/.github/...\n__example-workflow.yml@main"| reusable
+    template -->|"Synced via<br/>repo-file-sync-action"| synced
+    synced -->|"uses: org/.github/...<br/>__example-workflow.yml@main"| reusable
 ```
 
 ### Usage Pattern
