@@ -1,2 +1,1 @@
-# .github
-Public configuration repo for radius-project organization
+![Radius](./assets/images/radius-logo.svg)
