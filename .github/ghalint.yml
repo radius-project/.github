@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/suzuki-shunsuke/ghalint/main/json-schema/ghalint.json
+---
+excludes:
+  - policy_name: github_app_should_limit_repositories
+    workflow_file_path: .github/workflows/sync.yml
+    job_name: sync
+    step_id: get-token

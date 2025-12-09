@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+---
+name: Sync
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/sync.yml
+      - .github/sync.yml
+      - sync-templates/**
+      - workflow-templates/*.yaml
+      - workflow-templates/*.yml
+
+permissions: {}
+
+concurrency:
+  group: ${{ format('{0}-{1}-{2}-{3}-{4}', github.workflow, github.event_name, github.ref, github.base_ref, github.head_ref) }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Sync
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Get App Token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        id: get-token
+        with:
+          app-id: ${{ secrets.SYNC_BOT_APP_ID }}
+          private-key: ${{ secrets.SYNC_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-metadata: read
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Get bot details
+        id: bot-details
+        uses: raven-actions/bot-details@ee8966a9ff6e7e42cbfc4a56b4ddb60a9d1b40a6 # v1.2.0
+        with:
+          bot-slug-name: ${{ steps.get-token.outputs.app-slug }}
+          set-env: false
+
+      - name: Run Repo File Sync
+        uses: PaddleHQ/repo-file-sync-action@fb024b6e51a36213d16cc4b2c3b51c73b2b5ca70 # v1.26.13
+        with:
+          GH_INSTALLATION_TOKEN: ${{ steps.get-token.outputs.token }}
+          CONFIG_PATH: ./.github/sync.yml
+          COMMIT_PREFIX: "chore:"
+          BRANCH_PREFIX: repo-sync
+          GIT_EMAIL: ${{ steps.bot-details.outputs.email }}
+          GIT_USERNAME: ${{ steps.bot-details.outputs.name }}

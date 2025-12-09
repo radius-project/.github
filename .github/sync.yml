@@ -1,0 +1,34 @@
+# docs: https://github.com/PaddleHQ/repo-file-sync-action?tab=readme-ov-file#advanced-sync-config
+# nunjucks template: https://mozilla.github.io/nunjucks/templating.html
+---
+group:
+  # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+sort%3Aname-asc
+  repos: |
+    radius-project/.github
+    radius-project/bicep-types-aws
+    radius-project/blog
+    radius-project/community
+    radius-project/dashboard
+    radius-project/design-notes
+    radius-project/docs@edge
+    radius-project/lab
+    radius-project/radius
+    radius-project/recipes
+    radius-project/resource-types-contrib
+    radius-project/roadmap
+    radius-project/samples@edge
+    radius-project/terraform-private-modules
+    radius-project/website
+
+  files:
+    - source: sync-templates/LICENSE
+      dest: LICENSE
+
+    - source: sync-templates/.gitattributes
+      dest: .gitattributes
+
+    - source: sync-templates/.editorconfig
+      dest: .editorconfig
+
+    - source: workflow-templates/dependency-review.yml
+      dest: .github/workflows/dependency-review.yml
