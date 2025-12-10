@@ -1,0 +1,58 @@
+{#- Extract repo name from full_name (e.g., "radius-project/radius" → "radius") -#}
+{#- Remove leading dot if present (e.g., ".github" → "github") -#}
+{%- set repo_name = context.repo.repo | replace(r/^\./, '') -%}
+{%- set maintainers = "@radius-project/maintainers-" + repo_name -%}
+{%- set approvers = "@radius-project/approvers-" + repo_name -%}
+{%- set oncall = "@radius-project/on-call" -%}
+# Code Owners for {{ context.repo.full_name }}
+# Generated from template - do not edit directly
+
+# General maintainers and approvers for the entire repository
+* {{ maintainers }} {{ approvers }}
+
+# Dependency files - on-call can also approve these (Dependabot, etc.)
+
+# Node.js
+**/package.json           {{ maintainers }} {{ approvers }} {{ oncall }}
+**/package-lock.json      {{ maintainers }} {{ approvers }} {{ oncall }}
+**/pnpm-lock.yaml         {{ maintainers }} {{ approvers }} {{ oncall }}
+**/yarn.lock              {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.nvmrc                 {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.npmrc                 {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.node-version          {{ maintainers }} {{ approvers }} {{ oncall }}
+**/tsconfig.json          {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# Go
+**/go.mod                 {{ maintainers }} {{ approvers }} {{ oncall }}
+**/go.sum                 {{ maintainers }} {{ approvers }} {{ oncall }}
+**/go.work                {{ maintainers }} {{ approvers }} {{ oncall }}
+**/go.work.sum            {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# .NET
+**/*.csproj               {{ maintainers }} {{ approvers }} {{ oncall }}
+**/*.sln                  {{ maintainers }} {{ approvers }} {{ oncall }}
+**/nuget.config           {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# Python
+**/requirements.txt       {{ maintainers }} {{ approvers }} {{ oncall }}
+**/pyproject.toml         {{ maintainers }} {{ approvers }} {{ oncall }}
+**/uv.lock                {{ maintainers }} {{ approvers }} {{ oncall }}
+**/poetry.lock            {{ maintainers }} {{ approvers }} {{ oncall }}
+**/Pipfile                {{ maintainers }} {{ approvers }} {{ oncall }}
+**/Pipfile.lock           {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.python-version        {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# Rust
+**/Cargo.toml             {{ maintainers }} {{ approvers }} {{ oncall }}
+**/Cargo.lock             {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# Bicep
+**/bicepconfig.json       {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# Container files
+**/Dockerfile             {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.devcontainer/*.json   {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# GitHub workflows
+.github/workflows/*.yml   {{ maintainers }} {{ approvers }} {{ oncall }}
+.github/workflows/*.yaml  {{ maintainers }} {{ approvers }} {{ oncall }}
