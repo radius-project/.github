@@ -1,4 +1,3 @@
-{#- Extract repo name from full_name (e.g., "radius-project/radius" → "radius") -#}
 {#- Remove leading dot if present (e.g., ".github" → "github") -#}
 {%- set repo_name = repo.name | replace(r/^\./, '') -%}
 {%- set maintainers = maintainers-prefix + repo_name -%}
