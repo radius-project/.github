@@ -1,4 +1,4 @@
-{#- Remove leading dot if present (e.g., ".github" → "github") -#}
+{#- Remove leading dot if present (e.g., ".github" -> "github") -#}
 {%- set repo_name = repo.name | replace(r/^\./, '') -%}
 {%- set maintainers = maintainers-prefix + repo_name -%}
 {%- set approvers = approvers-prefix + repo_name -%}
