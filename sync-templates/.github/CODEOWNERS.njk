@@ -1,7 +1,7 @@
 {#- Remove leading dot if present (e.g., ".github" -> "github") -#}
-{%- set repo_name = repo.name | replace(r/^\./, '') -%}
-{%- set maintainers = maintainers-prefix + repo_name -%}
-{%- set approvers = approvers-prefix + repo_name -%}
+{%- set repo_name = repo.name | replace(".", "") -%}
+{%- set maintainers = maintainers_prefix + repo_name -%}
+{%- set approvers = approvers_prefix + repo_name -%}
 # Code Owners for {{ repo.fullName }}
 # Generated from template - do not edit directly
 
