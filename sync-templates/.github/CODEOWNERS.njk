@@ -1,10 +1,9 @@
 {#- Extract repo name from full_name (e.g., "radius-project/radius" → "radius") -#}
 {#- Remove leading dot if present (e.g., ".github" → "github") -#}
-{%- set repo_name = context.repo.repo | replace(r/^\./, '') -%}
-{%- set maintainers = "@radius-project/maintainers-" + repo_name -%}
-{%- set approvers = "@radius-project/approvers-" + repo_name -%}
-{%- set oncall = "@radius-project/on-call" -%}
-# Code Owners for {{ context.repo.full_name }}
+{%- set repo_name = repo.name | replace(r/^\./, '') -%}
+{%- set maintainers = maintainers-prefix + repo_name -%}
+{%- set approvers = approvers-prefix + repo_name -%}
+# Code Owners for {{ repo.full_name }}
 # Generated from template - do not edit directly
 
 # General maintainers and approvers for the entire repository

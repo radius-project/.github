@@ -32,7 +32,10 @@ group:
 
       - source: sync-templates/.github/CODEOWNERS.njk
         dest: .github/CODEOWNERS
-        template: true
+        template:
+          maintainers-prefix: "@radius-project/maintainers-"
+          approvers-prefix: "@radius-project/approvers-"
+          oncall: "@radius-project/on-call"
 
       - source: workflow-templates/dependency-review.yml
         dest: .github/workflows/dependency-review.yml
