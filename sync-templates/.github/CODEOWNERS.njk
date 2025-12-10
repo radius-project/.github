@@ -21,17 +21,21 @@
 **/.npmrc                 {{ maintainers }} {{ approvers }} {{ oncall }}
 **/.node-version          {{ maintainers }} {{ approvers }} {{ oncall }}
 **/tsconfig.json          {{ maintainers }} {{ approvers }} {{ oncall }}
+**/tsconfig.*.json        {{ maintainers }} {{ approvers }} {{ oncall }}
+**/*.tsconfig.json        {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # Go
 **/go.mod                 {{ maintainers }} {{ approvers }} {{ oncall }}
 **/go.sum                 {{ maintainers }} {{ approvers }} {{ oncall }}
 **/go.work                {{ maintainers }} {{ approvers }} {{ oncall }}
 **/go.work.sum            {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.go-version            {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # .NET
 **/*.csproj               {{ maintainers }} {{ approvers }} {{ oncall }}
 **/*.sln                  {{ maintainers }} {{ approvers }} {{ oncall }}
 **/nuget.config           {{ maintainers }} {{ approvers }} {{ oncall }}
+**/global.json            {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # Python
 **/requirements.txt       {{ maintainers }} {{ approvers }} {{ oncall }}
@@ -51,6 +55,7 @@
 
 # Container files
 **/Dockerfile             {{ maintainers }} {{ approvers }} {{ oncall }}
+**/*.Dockerfile           {{ maintainers }} {{ approvers }} {{ oncall }}
 **/.devcontainer/*.json   {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # GitHub workflows
