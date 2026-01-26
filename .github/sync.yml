@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/raven-actions/repo-files-sync/main/sync.schema.json
-# docs: https://github.com/PaddleHQ/repo-file-sync-action?tab=readme-ov-file#advanced-sync-config
+# docs: https://github.com/raven-actions/repo-files-sync?tab=readme-ov-file#advanced-sync-config
 # nunjucks template: https://mozilla.github.io/nunjucks/templating.html
 ---
 group:

@@ -72,7 +72,7 @@ flowchart TB
 
     sync_workflow -->|"Triggered on push to main<br/>(when sync-related files change)"| sync_action
 
-    sync_action["PaddleHQ/repo-file-sync-action<br/>Creates PRs in target repositories"]
+    sync_action["raven-actions/repo-files-sync<br/>Creates PRs in target repositories"]
 
     sync_action --> repo_a["org/repo-a"]
     sync_action --> repo_b["org/repo-b"]
@@ -129,7 +129,7 @@ The sync workflow (`.github/workflows/sync.yml`) is triggered when:
    - `pull-requests: write`
    - `workflows: write`
 1. **Bot Identity**: Retrieves bot details for commit attribution
-1. **File Sync**: Uses [PaddleHQ/repo-file-sync-action](https://github.com/PaddleHQ/repo-file-sync-action) to:
+1. **File Sync**: Uses [raven-actions/repo-files-sync](https://github.com/raven-actions/repo-files-sync) to:
    - Read the sync configuration from `.github/sync.yml`
    - Create branches (prefixed with `repo-sync`) in target repos
    - Copy files from source to destination paths
@@ -374,7 +374,7 @@ The sync action creates PRs, not direct commits. If conflicts occur:
 
 ## References
 
-- [PaddleHQ/repo-file-sync-action](https://github.com/PaddleHQ/repo-file-sync-action) - The sync action used
+- [raven-actions/repo-files-sync](https://github.com/raven-actions/repo-files-sync) - The sync action used
 - [Creating workflow templates](https://docs.github.com/en/actions/how-tos/reuse-automations/create-workflow-templates) - GitHub docs
 - [Reusable workflows](https://docs.github.com/en/actions/using-workflows/reusing-workflows) - GitHub docs
 - [GitHub Apps](https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/about-creating-github-apps) - Authentication method
