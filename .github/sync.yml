@@ -39,3 +39,10 @@ group:
 
       - source: workflow-templates/dependency-review.yml
         dest: .github/workflows/dependency-review.yml
+
+  - repos: |
+      radius-project/design-notes
+      radius-project/radius
+    files:
+      - source: sync-templates/.github/instructions/shell.instructions.md
+        dest: .github/instructions/shell.instructions.md
