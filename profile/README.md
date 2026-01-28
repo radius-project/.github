@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/radius-project/docs/v0.26/docs/content/radius-logo.svg" width=450px />
+![Radius](https://raw.githubusercontent.com/radius-project/.github/main/assets/images/radius-logo.svg)
 
 Radius is a cloud-native application platform that enables developers and the platform engineers that support them to collaborate on delivering and managing cloud-native applications. Read all about Radius on our [main repository](https://github.com/radius-project/radius) or:
 
