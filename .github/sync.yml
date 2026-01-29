@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/raven-actions/repo-files-sync/main/sync.schema.json
+# docs: https://github.com/raven-actions/repo-files-sync?tab=readme-ov-file#advanced-sync-config
+# nunjucks template: https://mozilla.github.io/nunjucks/templating.html
+---
+group:
+  # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+sort%3Aname-asc
+  - repos: |
+      radius-project/.github
+      radius-project/bicep-types-aws
+      radius-project/blog
+      radius-project/community
+      radius-project/dashboard
+      radius-project/design-notes
+      radius-project/docs@edge
+      radius-project/lab
+      radius-project/radius
+      radius-project/recipes
+      radius-project/resource-types-contrib
+      radius-project/roadmap
+      radius-project/samples@edge
+      radius-project/terraform-private-modules
+      radius-project/website
+    files:
+      - source: sync-templates/LICENSE.APACHE20
+        dest: LICENSE
+
+      - source: sync-templates/.gitattributes
+        dest: .gitattributes
+
+      - source: sync-templates/.editorconfig
+        dest: .editorconfig
+
+      - source: sync-templates/.github/CODEOWNERS.njk
+        dest: .github/CODEOWNERS
+        template:
+          maintainers_prefix: "@radius-project/maintainers-"
+          approvers_prefix: "@radius-project/approvers-"
+          oncall: "@radius-project/on-call"
+
+      - source: workflow-templates/dependency-review.yml
+        dest: .github/workflows/dependency-review.yml
+
+  - repos: |
+      radius-project/design-notes
+      radius-project/radius
+    files:
+      - source: sync-templates/.github/instructions/shell.instructions.md
+        dest: .github/instructions/shell.instructions.md
