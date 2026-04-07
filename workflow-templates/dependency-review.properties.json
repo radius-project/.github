@@ -1,0 +1,9 @@
+{
+  "name": "Dependency Review",
+  "description": "Dependency Review workflow template.",
+  "iconName": "package-dependencies",
+  "categories": [
+    "dependency-management"
+  ],
+  "filePatterns": []
+}
