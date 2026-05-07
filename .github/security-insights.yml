@@ -1,0 +1,69 @@
+header:
+    schema-version: 2.0.0
+    last-updated: 2026-05-06
+    last-reviewed: 2026-05-06
+    url: https://github.com/radius-project/.github
+project:
+    name: Radius
+    homepage: https://radapp.io
+    steward:
+        uri: https://www.cncf.io/sandbox-projects/
+        comment: Radius is a CNCF sandbox project.
+    administrators:
+        - name: radius-project/maintainers-radius
+          primary: true
+          social: https://github.com/orgs/radius-project/teams/maintainers-radius
+        - name: radius-project/maintainers-docs
+          primary: false
+          social: https://github.com/orgs/radius-project/teams/maintainers-docs
+        - name: radius-project/maintainers-samples
+          primary: false
+          social: https://github.com/orgs/radius-project/teams/maintainers-samples
+        - name: radius-project/maintainers-recipes
+          primary: false
+          social: https://github.com/orgs/radius-project/teams/maintainers-recipes
+        - name: radius-project/maintainers-bicep-types-aws
+          primary: false
+          social: https://github.com/orgs/radius-project/teams/maintainers-bicep-types-aws
+        - name: radius-project/maintainers-resource-types-contrib
+          primary: false
+          social: https://github.com/orgs/radius-project/teams/maintainers-resource-types-contrib
+    documentation:
+        code-of-conduct: https://github.com/radius-project/community/blob/main/CODE-OF-CONDUCT.md
+        design: https://github.com/radius-project/radius/tree/main/eng/design-notes
+        detailed-guide: https://docs.radapp.io/guides/
+        quickstart-guide: https://docs.radapp.io/getting-started/
+        release-process: https://github.com/radius-project/radius/blob/main/docs/contributing/contributing-releases/README.md
+        support-policy: https://github.com/radius-project/radius/blob/main/SUPPORT.md
+    repositories:
+        - name: Radius
+          url: https://github.com/radius-project/radius
+          comment: This is the main Radius repository. It contains the Radius codebase and project documentation.
+        - name: Docs
+          url: https://github.com/radius-project/docs
+          comment: This repository contains the Radius documentation source.
+        - name: Samples
+          url: https://github.com/radius-project/samples
+          comment: This repository contains quickstarts, reference apps, and tutorials for Radius.
+        - name: Recipes
+          url: https://github.com/radius-project/recipes
+          comment: This repository contains community recipe templates for Radius environments.
+        - name: Website
+          url: https://github.com/radius-project/website
+          comment: This repository contains the source code for the Radius website.
+        - name: AWS Bicep Types
+          url: https://github.com/radius-project/bicep-types-aws
+          comment: This repository contains tooling for Bicep support for AWS resource types.
+        - name: Resource Types and Recipes Contributions
+          url: https://github.com/radius-project/resource-types-contrib
+          comment: This repository contains Radius resource type definitions and recipes contributed for use with Radius.
+    vulnerability-reporting:
+        reports-accepted: true
+        bug-bounty-available: false
+        contact:
+            name: ""
+            primary: true
+            email: security@radapp.dev
+        policy: https://github.com/radius-project/radius/blob/main/SECURITY.md
+        in-scope:
+            - all source code repositories managed through our GitHub organization
