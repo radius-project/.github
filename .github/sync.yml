@@ -10,7 +10,6 @@ group:
       radius-project/blog
       radius-project/community
       radius-project/dashboard
-      radius-project/design-notes
       radius-project/docs@edge
       radius-project/lab
       radius-project/radius
@@ -41,7 +40,6 @@ group:
         dest: .github/workflows/dependency-review.yml
 
   - repos: |
-      radius-project/design-notes
       radius-project/radius
     files:
       - source: sync-templates/.github/instructions/shell.instructions.md
