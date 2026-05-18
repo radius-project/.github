@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# yamllint disable rule:line-length rule:truthy
+# docs:
+# - https://github.com/dependabot/fetch-metadata
+# - https://github.com/actions/create-github-app-token
+# - https://github.com/actions/github-script
+---
+name: __dependabot-manager
+
+on:
+  workflow_call:
+    secrets:
+      DEPENDABOT_MANAGER_BOT_CLIENT_ID:
+        required: true
+      DEPENDABOT_MANAGER_BOT_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  dependabot:
+    if: >-
+      (github.event_name == 'pull_request'
+      || github.event_name == 'pull_request_target')
+      && github.event.pull_request.user.login == 'dependabot[bot]'
+    name: Dependabot Manager
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: dependabot-manager-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: 🔑 Generate GitHub App token
+        id: github-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        with:
+          client-id: ${{ secrets.DEPENDABOT_MANAGER_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.DEPENDABOT_MANAGER_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-vulnerability-alerts: read
+
+      - name: 📝 Fetch Dependabot metadata
+        id: dependabot-metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98  # v3.1.0
+        with:
+          github-token: ${{ steps.github-app-token.outputs.token }}
+          alert-lookup: true
+          compat-lookup: true
+
+      - name: 🧭 Evaluate Dependabot policy
+        id: policy
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # 9.0.0
+        with:
+          script: |
+            const updateType = core.getInput('update_type');
+            const dependencyType = core.getInput('dependency_type');
+            const dependencyGroup = core.getInput('dependency_group');
+            const maintainerChanges = core.getInput('maintainer_changes');
+            const ghsaId = core.getInput('ghsa_id');
+            const cvss = core.getInput('cvss');
+
+            let autoManage = false;
+            let reason = 'manual review required';
+            const security = ghsaId !== '' && ghsaId !== undefined || (cvss !== '' && cvss !== '0' && cvss !== '0.0');
+
+            if (maintainerChanges !== 'false') {
+              reason = 'maintainer changes detected';
+            } else if (updateType === 'version-update:semver-major') {
+              reason = dependencyGroup !== ''
+                ? 'grouped update contains a major update'
+                : 'major update';
+            } else {
+              autoManage = true;
+              reason = dependencyGroup !== ''
+                ? `eligible grouped ${updateType} update`
+                : `eligible ${dependencyType} ${updateType} update`;
+            }
+
+            core.setOutput('auto_manage', String(autoManage));
+            core.setOutput('security', String(security));
+            core.setOutput('reason', reason);
+            core.info(`Dependabot policy decision: ${reason}`);
+        env:
+          INPUT_UPDATE_TYPE: ${{ steps.dependabot-metadata.outputs.update-type }}
+          INPUT_DEPENDENCY_TYPE: ${{ steps.dependabot-metadata.outputs.dependency-type }}
+          INPUT_DEPENDENCY_GROUP: ${{ steps.dependabot-metadata.outputs.dependency-group }}
+          INPUT_MAINTAINER_CHANGES: ${{ steps.dependabot-metadata.outputs.maintainer-changes }}
+          INPUT_GHSA_ID: ${{ steps.dependabot-metadata.outputs.ghsa-id }}
+          INPUT_CVSS: ${{ steps.dependabot-metadata.outputs.cvss }}
+
+      - name: 👍 Approve PR
+        if: steps.policy.outputs.auto_manage == 'true'
+        run: gh pr review --approve "${PR_URL}"
+        env:
+          GH_TOKEN: ${{ steps.github-app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+      - name: 🤝 Enable auto-merge
+        if: steps.policy.outputs.auto_manage == 'true'
+        run: gh pr merge --auto --squash "${PR_URL}"
+        env:
+          GH_TOKEN: ${{ steps.github-app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+
+      - name: 🚨 Label security update
+        if: steps.policy.outputs.security == 'true'
+        run: gh pr edit "${PR_URL}" --add-label "security"
+        env:
+          GH_TOKEN: ${{ steps.github-app-token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
