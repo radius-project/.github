@@ -39,6 +39,9 @@ group:
       - source: workflow-templates/dependency-review.yml
         dest: .github/workflows/dependency-review.yml
 
+      - source: workflow-templates/dependabot-manager.yml
+        dest: .github/workflows/dependabot-manager.yml
+
   - repos: |
       radius-project/radius
     files:

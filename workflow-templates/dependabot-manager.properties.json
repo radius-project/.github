@@ -1,0 +1,9 @@
+{
+  "name": "Dependabot Manager",
+  "description": "Dependabot Manager workflow template.",
+  "iconName": "package-dependencies",
+  "categories": [
+    "dependency-management"
+  ],
+  "filePatterns": []
+}
