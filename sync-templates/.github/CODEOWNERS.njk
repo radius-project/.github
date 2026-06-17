@@ -15,13 +15,24 @@
 
 # Dependency files - on-call can also approve these (Dependabot, etc.)
 
+# Version managers (language-agnostic)
+**/.tool-versions         {{ maintainers }} {{ approvers }} {{ oncall }}
+**/mise.toml              {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.mise.toml             {{ maintainers }} {{ approvers }} {{ oncall }}
+
 # Node.js
 **/package.json           {{ maintainers }} {{ approvers }} {{ oncall }}
 **/package-lock.json      {{ maintainers }} {{ approvers }} {{ oncall }}
+**/npm-shrinkwrap.json    {{ maintainers }} {{ approvers }} {{ oncall }}
 **/pnpm-lock.yaml         {{ maintainers }} {{ approvers }} {{ oncall }}
+**/pnpm-workspace.yaml    {{ maintainers }} {{ approvers }} {{ oncall }}
 **/yarn.lock              {{ maintainers }} {{ approvers }} {{ oncall }}
+**/bun.lock               {{ maintainers }} {{ approvers }} {{ oncall }}
+**/bun.lockb              {{ maintainers }} {{ approvers }} {{ oncall }}
 **/.nvmrc                 {{ maintainers }} {{ approvers }} {{ oncall }}
 **/.npmrc                 {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.yarnrc                {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.yarnrc.yml            {{ maintainers }} {{ approvers }} {{ oncall }}
 **/.node-version          {{ maintainers }} {{ approvers }} {{ oncall }}
 **/tsconfig.json          {{ maintainers }} {{ approvers }} {{ oncall }}
 **/tsconfig.*.json        {{ maintainers }} {{ approvers }} {{ oncall }}
@@ -39,12 +50,21 @@
 **/*.sln                  {{ maintainers }} {{ approvers }} {{ oncall }}
 **/nuget.config           {{ maintainers }} {{ approvers }} {{ oncall }}
 **/global.json            {{ maintainers }} {{ approvers }} {{ oncall }}
+**/Directory.Build.props  {{ maintainers }} {{ approvers }} {{ oncall }}
+**/Directory.Build.targets {{ maintainers }} {{ approvers }} {{ oncall }}
+**/Directory.Packages.props {{ maintainers }} {{ approvers }} {{ oncall }}
+**/packages.config        {{ maintainers }} {{ approvers }} {{ oncall }}
+**/packages.lock.json     {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # Python
-**/requirements.txt       {{ maintainers }} {{ approvers }} {{ oncall }}
+**/requirements*.txt      {{ maintainers }} {{ approvers }} {{ oncall }}
+**/constraints*.txt       {{ maintainers }} {{ approvers }} {{ oncall }}
+**/setup.py               {{ maintainers }} {{ approvers }} {{ oncall }}
+**/setup.cfg              {{ maintainers }} {{ approvers }} {{ oncall }}
 **/pyproject.toml         {{ maintainers }} {{ approvers }} {{ oncall }}
 **/uv.lock                {{ maintainers }} {{ approvers }} {{ oncall }}
 **/poetry.lock            {{ maintainers }} {{ approvers }} {{ oncall }}
+**/pdm.lock               {{ maintainers }} {{ approvers }} {{ oncall }}
 **/Pipfile                {{ maintainers }} {{ approvers }} {{ oncall }}
 **/Pipfile.lock           {{ maintainers }} {{ approvers }} {{ oncall }}
 **/.python-version        {{ maintainers }} {{ approvers }} {{ oncall }}
@@ -52,9 +72,16 @@
 # Rust
 **/Cargo.toml             {{ maintainers }} {{ approvers }} {{ oncall }}
 **/Cargo.lock             {{ maintainers }} {{ approvers }} {{ oncall }}
+**/rust-toolchain         {{ maintainers }} {{ approvers }} {{ oncall }}
+**/rust-toolchain.toml    {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # Bicep
 **/bicepconfig.json       {{ maintainers }} {{ approvers }} {{ oncall }}
+
+# Terraform / OpenTofu
+**/versions.tf            {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.terraform.lock.hcl    {{ maintainers }} {{ approvers }} {{ oncall }}
+**/.terraform-version     {{ maintainers }} {{ approvers }} {{ oncall }}
 
 # Container files
 **/Dockerfile             {{ maintainers }} {{ approvers }} {{ oncall }}
