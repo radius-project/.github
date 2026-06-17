@@ -1,0 +1,121 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - https://cspell.org/docs/getting-started
+# - https://github.com/streetsidesoftware/cspell
+---
+name: __spellcheck
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: Path to the cspell configuration file.
+        type: string
+        required: false
+        default: .github/configs/.cspell.yml
+      glob:
+        description: Glob of files to spell-check.
+        type: string
+        required: false
+        default: "**/*.md"
+      node-version-file:
+        description: Path to a Node.js version file (.node-version, .nvmrc, etc.). Used when the file exists.
+        type: string
+        required: false
+        default: .node-version
+      node-version:
+        description: Fallback Node.js version used when the version file is not found.
+        type: string
+        required: false
+        default: "24"
+
+permissions: {}
+
+env:
+  ACTION_LINK: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  CSPELLIGNORE_LINK: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.repository.default_branch }}/.cspellignore"
+
+concurrency:
+  group: spellcheck-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  spellcheck:
+    name: Spellcheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Resolve Node.js version
+        id: node
+        run: |
+          if [[ -n "${NODE_VERSION_FILE}" && -f "${NODE_VERSION_FILE}" ]]; then
+            echo "Using Node.js version file: ${NODE_VERSION_FILE}"
+            echo "file=${NODE_VERSION_FILE}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Version file not found; using fallback Node.js version: ${NODE_VERSION}"
+            echo "version=${NODE_VERSION}" >> "${GITHUB_OUTPUT}"
+          fi
+        env:
+          NODE_VERSION_FILE: ${{ inputs.node-version-file }}
+          NODE_VERSION: ${{ inputs.node-version }}
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+          node-version-file: ${{ steps.node.outputs.file }}
+
+      - name: Install cspell
+        run: npm install -g cspell
+
+      - name: Spellcheck
+        run: |
+          cspell lint --config "${INPUT_CONFIG}" --no-progress --dot "${INPUT_GLOB}"
+        env:
+          INPUT_CONFIG: ${{ inputs.config }}
+          INPUT_GLOB: ${{ inputs.glob }}
+
+      - name: Post GitHub workflow output on failure
+        if: failure()
+        run: |
+          {
+            echo "## :x: Spellcheck Failed"
+            echo "There are spelling errors in your PR. Visit [the workflow output](${ACTION_LINK}) to see what words are failing."
+            echo "### Adding new words"
+            echo "You can add new custom words to [.cspellignore](${CSPELLIGNORE_LINK})."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Post GitHub workflow output on success
+        run: |
+          {
+            echo "## :white_check_mark: Spellcheck Passed"
+            echo "There are no spelling errors in your PR."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Post GitHub comment on failure
+        if: failure()
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        continue-on-error: true
+        with:
+          header: spellcheck
+          recreate: true
+          message: |
+            ## :x: Spellcheck Failed
+            There are spelling errors in your PR. Visit [the workflow output](${{ env.ACTION_LINK }}) to see what words are failing.
+            ### Adding new words
+            You can add new custom words to [.cspellignore](${{ env.CSPELLIGNORE_LINK }}).
+
+      - name: Clear GitHub comment on success
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        continue-on-error: true
+        with:
+          header: spellcheck
+          delete: true

@@ -47,3 +47,18 @@ group:
     files:
       - source: sync-templates/.github/instructions/shell.instructions.md
         dest: .github/instructions/shell.instructions.md
+
+  # Spellcheck (cspell) config and workflow for the documentation-heavy repos.
+  # Destination workflow keeps the existing `.yaml` extension so it overwrites
+  # the per-repo workflow instead of creating a duplicate.
+  - repos: |
+      radius-project/blog
+      radius-project/docs@edge
+      radius-project/radius
+      radius-project/website
+    files:
+      - source: sync-templates/.github/configs/.cspell.yml
+        dest: .github/configs/.cspell.yml
+
+      - source: workflow-templates/spellcheck.yml
+        dest: .github/workflows/spellcheck.yaml

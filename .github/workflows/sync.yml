@@ -51,7 +51,7 @@ jobs:
           bot-slug-name: ${{ steps.get-token.outputs.app-slug }}
           set-env: false
 
-      - name: Run Repo File Sync
+      - name: Run Repo Files Sync
         uses: raven-actions/repo-files-sync@a4c9248f592fa5c5d19d70f630b7bd0d4772ab67 # v0.1.0-rc.12
         with:
           GH_TOKEN: ${{ steps.get-token.outputs.token }}
