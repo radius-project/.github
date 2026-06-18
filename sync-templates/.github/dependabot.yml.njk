@@ -1,0 +1,96 @@
+{#-
+  Universal Dependabot configuration template.
+
+  Synced from radius-project/.github via raven-actions/repo-files-sync.
+  Per repository, declare only the package ecosystems that apply in .github/sync.yml
+  using the per-file `template:` block. Example:
+
+    - source: sync-templates/.github/dependabot.yml.njk
+      dest: .github/dependabot.yml
+      template:
+        ecosystems:
+          - type: github-actions          # omit `directory` -> defaults to repo root "/"
+          - type: gomod
+            directory: /src               # specify only non-root single directories
+          - type: npm
+            directories: ["/", "/typespec"]   # use `directories` for multiple paths/globs
+          - type: devcontainers
+
+  Per-ecosystem options:
+    type         (required)  Dependabot `package-ecosystem` value. Standard values:
+                             bazel, bun, bundler, cargo, composer, conda, deno,
+                             devcontainers, docker, docker-compose, dotnet-sdk, elm,
+                             github-actions, gitsubmodule, gomod, gradle, helm, julia,
+                             maven, mix, nix, npm, nuget, opentofu, pip, pre-commit,
+                             pub, rust-toolchain, sbt, swift, terraform, uv, vcpkg.
+    directory    (optional)  Single non-root directory. Omit entirely for the
+                             repository root, which is the default ("/").
+    directories  (optional)  List of directories/globs. Takes precedence over `directory`.
+    ignore       (optional)  List of { dependency-name, update-types? } passthrough rules.
+
+  Conventions applied automatically (org-wide standardization):
+    * schedule.interval ............ weekly
+    * cooldown.default-days ........ 7  (let brand-new releases settle before updating)
+    * groups ....................... one grouped PR per ecosystem for BOTH version and
+                                     security updates (patterns: ["*"])
+    * commit-message.prefix ........ "ci" for github-actions, otherwise "deps"; include: scope
+    * target-branch ................ emitted automatically when synced to a non-default
+                                     branch (e.g. a repo listed as `owner/repo@edge`).
+-#}
+# yaml-language-server: $schema=https://www.schemastore.org/dependabot-2.0.json
+# ------------------------------------------------------------------------------
+# This file is synced from the radius-project/.github repository.
+# DO NOT EDIT MANUALLY - changes will be overwritten by the next sync.
+# Source: https://github.com/radius-project/.github
+# Reference: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
+# ------------------------------------------------------------------------------
+---
+version: 2
+
+updates:
+{% for eco in ecosystems %}
+{% if not loop.first %}
+
+{% endif %}
+{% set dirs = eco.directories if eco.directories else ([eco.directory] if eco.directory else ["/"]) %}
+  - package-ecosystem: {{ eco.type }}
+{% if dirs | length == 1 %}
+    directory: "{{ dirs[0] }}"
+{% else %}
+    directories:
+{% for dir in dirs %}
+      - "{{ dir }}"
+{% endfor %}
+{% endif %}
+{% if repo.branch and repo.branch != "default" %}
+    target-branch: "{{ repo.branch }}"
+{% endif %}
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: {{ "ci" if eco.type == "github-actions" else "deps" }}
+      include: scope
+    groups:
+      all:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+{% if eco.ignore %}
+    ignore:
+{% for rule in eco.ignore %}
+      - dependency-name: "{{ rule['dependency-name'] }}"
+{% if rule['update-types'] %}
+        update-types:
+{% for ut in rule['update-types'] %}
+          - "{{ ut }}"
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}

@@ -62,3 +62,152 @@ group:
 
       - source: workflow-templates/spellcheck.yml
         dest: .github/workflows/spellcheck.yaml
+
+  # ----------------------------------------------------------------------------
+  # Dependabot - generated per-repo from one universal template. Declare only the
+  # package ecosystems each repo uses; the repository root "/" is the template
+  # default, so it is omitted here (only non-root paths are listed).
+  # Template: sync-templates/.github/dependabot.yml.njk
+  # ----------------------------------------------------------------------------
+
+  # github-actions only
+  - repos: |
+      radius-project/community
+      radius-project/recipes
+      radius-project/website
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+
+  - repos: |
+      radius-project/wellknown
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: devcontainers
+
+  - repos: |
+      radius-project/dashboard
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: npm
+            - type: devcontainers
+
+  - repos: |
+      radius-project/resource-types-contrib
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+            - type: devcontainers
+
+  - repos: |
+      radius-project/blog
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+              directory: /radblog
+            - type: npm
+              directory: /radblog
+
+  - repos: |
+      radius-project/bicep-types-aws
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gitsubmodule
+            - type: devcontainers
+            - type: gomod
+              directory: /src/aws-type-downloader
+            - type: npm
+              directory: /src/aws-type-generator
+
+  - repos: |
+      radius-project/radius
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+              directories:
+                - "/"
+                - "/.github/actions/*"
+            - type: gomod
+              directories:
+                - "/"
+                - "/test/magpiego"
+                - "/test/testrp"
+            - type: npm
+              directories:
+                - "/"
+                - "/typespec"
+                - "/hack/bicep-types-radius/src/autorest.bicep"
+                - "/hack/bicep-types-radius/src/generator"
+            - type: devcontainers
+
+  - repos: |
+      radius-project/docs@edge
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+              ignore:
+                - dependency-name: "Azure/static-web-apps-deploy"
+            - type: devcontainers
+            - type: gomod
+              directory: /docs
+            - type: npm
+              directory: /docs
+
+  - repos: |
+      radius-project/samples@edge
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+              directory: /samples/aws-sqs
+            - type: devcontainers
+            - type: gitsubmodule
+            - type: npm
+              directories:
+                - "/playwright"
+                - "/samples/dapr/nodeapp"
+                - "/samples/demo"
+                - "/samples/demo/client"
+              ignore:
+                - dependency-name: "*"
+                  update-types:
+                    - "version-update:semver-minor"
+                    - "version-update:semver-major"
+            - type: nuget
+              directories:
+                - "/samples/aws"
+                - "/samples/dapr/ui"
+            - type: pip
+              directory: /samples/volumes/src
