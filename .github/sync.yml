@@ -65,8 +65,8 @@ group:
 
   # ----------------------------------------------------------------------------
   # Dependabot - generated per-repo from one universal template. Declare only the
-  # package ecosystems each repo uses; the repository root "/" is the template
-  # default, so it is omitted here (only non-root paths are listed).
+  # package ecosystems each repo uses. For single-path configs, omit `directory` to
+  # default to "/"; when using `directories:` (multi-path), include "/" explicitly.
   # Template: sync-templates/.github/dependabot.yml.njk
   # ----------------------------------------------------------------------------
 
