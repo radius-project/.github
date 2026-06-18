@@ -70,6 +70,16 @@ group:
   # Template: sync-templates/.github/dependabot.yml.njk
   # ----------------------------------------------------------------------------
 
+  - repos: |
+      radius-project/.github
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+              directories: ["/", "/workflow-templates"]
+
   # github-actions only
   - repos: |
       radius-project/community
