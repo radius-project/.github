@@ -28,7 +28,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
@@ -52,7 +52,7 @@ jobs:
           set-env: false
 
       - name: Run Repo Files Sync
-        uses: raven-actions/repo-files-sync@a4c9248f592fa5c5d19d70f630b7bd0d4772ab67 # v0.1.0-rc.12
+        uses: raven-actions/repo-files-sync@866d3f45f6108d57db32a5d67b42108530d9be6b # v0.1.0-rc.13
         with:
           GH_TOKEN: ${{ steps.get-token.outputs.token }}
           CONFIG_PATH: ./.github/sync.yml
