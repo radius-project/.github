@@ -33,7 +33,7 @@
     * cooldown.default-days ........ 7  (let brand-new releases settle before updating)
     * groups ....................... one grouped PR per ecosystem for BOTH version and
                                      security updates (patterns: ["*"])
-    * commit-message.prefix ........ "ci" for github-actions, otherwise "deps"; include: scope
+    * commit-message.prefix ........ "ci" for github-actions, otherwise "chore"; include: scope
     * target-branch ................ emitted automatically when synced to a non-default
                                      branch (e.g. a repo listed as `owner/repo@edge`).
 -#}
@@ -70,7 +70,7 @@ updates:
     cooldown:
       default-days: 7
     commit-message:
-      prefix: {{ "ci" if eco.type == "github-actions" else "deps" }}
+      prefix: {{ "ci" if eco.type == "github-actions" else "chore" }}
       include: scope
     groups:
       all:
