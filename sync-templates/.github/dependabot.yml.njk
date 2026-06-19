@@ -32,7 +32,10 @@
     * schedule.interval ............ weekly
     * cooldown.default-days ........ 7  (let brand-new releases settle before updating)
     * groups ....................... one grouped PR per ecosystem for BOTH version and
-                                     security updates (patterns: ["*"])
+                                     security updates (patterns: ["*"]); the version-updates
+                                     group is named after the ecosystem (e.g. "go-deps",
+                                     "javascript-deps", "github-actions"), the security-updates group
+                                     is named "security"
     * commit-message.prefix ........ "ci" for github-actions, otherwise "chore"; include: scope
     * target-branch ................ emitted automatically when synced to a non-default
                                      branch (e.g. a repo listed as `owner/repo@edge`).
@@ -47,6 +50,20 @@
 ---
 version: 2
 
+{# Friendly, human-readable group names per ecosystem; unmapped types fall back to the type itself. #}
+{% set friendlyGroupNames = {
+  "gomod": "go-deps",
+  "npm": "javascript-deps",
+  "pip": "python-deps",
+  "uv": "python-deps",
+  "bundler": "ruby-deps",
+  "cargo": "rust-deps",
+  "composer": "php-deps",
+  "nuget": "dotnet-deps",
+  "mix": "elixir-deps",
+  "pub": "dart-deps",
+  "sbt": "scala-deps"
+} %}
 updates:
 {% for eco in ecosystems %}
 {% if not loop.first %}
@@ -73,7 +90,7 @@ updates:
       prefix: {{ "ci" if eco.type == "github-actions" else "chore" }}
       include: scope
     groups:
-      all:
+      {{ friendlyGroupNames[eco.type] if friendlyGroupNames[eco.type] else eco.type }}:
         applies-to: version-updates
         patterns:
           - "*"
