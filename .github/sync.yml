@@ -168,8 +168,6 @@ group:
                 - "/"
                 - "/test/magpiego"
                 - "/test/testrp"
-              ignore:
-                - dependency-name: "github.com/charmbracelet/x/exp/*"
             - type: npm
               directories:
                 - "/"
