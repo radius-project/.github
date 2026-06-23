@@ -29,6 +29,21 @@ group:
       - source: sync-templates/.editorconfig
         dest: .editorconfig
 
+      - source: sync-templates/.github/linters/.markdownlint.yml
+        dest: .github/linters/.markdownlint.yml
+
+      - source: sync-templates/.github/linters/.markdownlint-cli2.yaml
+        dest: .github/linters/.markdownlint-cli2.yaml
+
+      - source: sync-templates/.github/linters/.prettierrc.yml
+        dest: .github/linters/.prettierrc.yml
+
+      - source: sync-templates/.github/linters/.shellcheckrc
+        dest: .github/linters/.shellcheckrc
+
+      - source: sync-templates/.github/linters/.yamllint.yml
+        dest: .github/linters/.yamllint.yml
+
       - source: sync-templates/.github/CODEOWNERS.njk
         dest: .github/CODEOWNERS
         template:
@@ -57,8 +72,8 @@ group:
       radius-project/radius
       radius-project/website
     files:
-      - source: sync-templates/.github/configs/.cspell.yml
-        dest: .github/configs/.cspell.yml
+      - source: sync-templates/.github/linters/.cspell.yml
+        dest: .github/linters/.cspell.yml
 
       - source: workflow-templates/spellcheck.yml
         dest: .github/workflows/spellcheck.yaml

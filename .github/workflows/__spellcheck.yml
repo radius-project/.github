@@ -12,7 +12,7 @@ on:
         description: Path to the cspell configuration file.
         type: string
         required: false
-        default: .github/configs/.cspell.yml
+        default: .github/linters/.cspell.yml
       glob:
         description: Glob of files to spell-check.
         type: string
