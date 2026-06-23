@@ -21,6 +21,9 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    labels:
+      - dependencies
+      - deps/github-actions
     groups:
       github-actions:
         applies-to: version-updates
