@@ -37,6 +37,7 @@
                                      "javascript-deps", "github-actions"), the security-updates group
                                      is named "security"
     * commit-message.prefix ........ "ci" for github-actions, otherwise "chore"; include: scope
+    * labels ....................... "deps/<ecosystem>" on every PR (e.g. deps/github-actions, deps/npm)
     * target-branch ................ emitted automatically when synced to a non-default
                                      branch (e.g. a repo listed as `owner/repo@edge`).
 -#}
@@ -64,7 +65,9 @@ version: 2
   "pub": "dart-deps",
   "maven": "java-deps",
   "gradle": "java-deps",
-  "sbt": "scala-deps"
+  "sbt": "scala-deps",
+  "terraform": "terraform-deps",
+  "opentofu": "opentofu-deps"
 } %}
 updates:
 {% for eco in ecosystems %}
@@ -91,6 +94,9 @@ updates:
     commit-message:
       prefix: {{ "ci" if eco.type == "github-actions" else "chore" }}
       include: scope
+    labels:
+      - dependencies
+      - deps/{{ eco.type }}
     groups:
       {{ friendlyGroupNames[eco.type] if friendlyGroupNames[eco.type] else eco.type }}:
         applies-to: version-updates

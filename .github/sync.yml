@@ -116,6 +116,8 @@ group:
           ecosystems:
             - type: github-actions
             - type: devcontainers
+            - type: opentofu
+              directories: ["/**/*"]
 
   - repos: |
       radius-project/dashboard
