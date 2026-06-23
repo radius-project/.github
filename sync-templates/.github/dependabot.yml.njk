@@ -23,9 +23,10 @@
                              github-actions, gitsubmodule, gomod, gradle, helm, julia,
                              maven, mix, nix, npm, nuget, opentofu, pip, pre-commit,
                              pub, rust-toolchain, sbt, swift, terraform, uv, vcpkg.
-    directory    (optional)  Single non-root directory. Omit entirely for the
-                             repository root, which is the default ("/").
-    directories  (optional)  List of directories/globs. Takes precedence over `directory`.
+    directory    (optional)  Single non-root directory; no glob patterns allowed.
+                             Omit entirely for the repository root, the default ("/").
+    directories  (optional)  List of directories/globs. Required for any wildcard
+                             path (e.g. "/**/*"). Takes precedence over `directory`.
     ignore       (optional)  List of { dependency-name, update-types? } passthrough rules.
 
   Conventions applied automatically (org-wide standardization):
@@ -74,15 +75,14 @@ updates:
 {% if not loop.first %}
 
 {% endif %}
-{% set dirs = eco.directories if eco.directories else ([eco.directory] if eco.directory else ["/"]) %}
   - package-ecosystem: {{ eco.type }}
-{% if dirs | length == 1 %}
-    directory: "{{ dirs[0] }}"
-{% else %}
+{% if eco.directories %}
     directories:
-{% for dir in dirs %}
+{% for dir in eco.directories %}
       - "{{ dir }}"
 {% endfor %}
+{% else %}
+    directory: "{{ eco.directory if eco.directory else '/' }}"
 {% endif %}
 {% if repo.branch and repo.branch != "default" %}
     target-branch: "{{ repo.branch }}"
