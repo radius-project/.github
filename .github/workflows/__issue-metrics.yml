@@ -1,0 +1,151 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - https://github.com/github-community-projects/issue-metrics
+# - https://github.com/github-community-projects/issue-metrics/blob/main/docs/search-query.md
+---
+name: __issue-metrics
+
+on:
+  workflow_call:
+    inputs:
+      report-type:
+        description: Reporting window to generate (weekly or monthly). Ignored when search-query is set.
+        type: string
+        required: false
+        default: weekly
+      target:
+        description: Search scope qualifier (e.g. repo:owner/name, org:owner). Defaults to the calling repository. Cross-repo/org scopes require a token with access to the target.
+        type: string
+        required: false
+        default: ""
+      date-field:
+        description: Date field used for the reporting window (created or closed).
+        type: string
+        required: false
+        default: created
+      search-query:
+        description: Full SEARCH_QUERY override. When set, report-type, date-field and target are ignored.
+        type: string
+        required: false
+        default: ""
+      search-query-suffix:
+        description: Extra qualifiers appended to the generated query (e.g. -reason:"not planned" -label:duplicate).
+        type: string
+        required: false
+        default: ""
+      report-title:
+        description: Title shown at the top of the metrics report.
+        type: string
+        required: false
+        default: Issues / Pull Requests Metrics
+      labels-to-measure:
+        description: Comma-separated labels to measure time-in-label (e.g. triage,blocked).
+        type: string
+        required: false
+        default: ""
+      ignore-users:
+        description: Comma-separated users to exclude from metrics (e.g. bots that skew response times).
+        type: string
+        required: false
+        default: ""
+      enable-mentor-count:
+        description: Include the active-mentor metric (counts users who leave many helpful comments).
+        type: boolean
+        required: false
+        default: false
+      min-mentor-comments:
+        description: Minimum comments for a user to count as a mentor.
+        type: number
+        required: false
+        default: 5
+      max-comments-eval:
+        description: Maximum comments per thread evaluated for mentor stats.
+        type: number
+        required: false
+        default: 10
+
+permissions: {}
+
+concurrency:
+  group: issue-metrics-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  issue-metrics:
+    name: Issue Metrics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Build search query
+        id: query
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${INPUT_SEARCH_QUERY}" ]]; then
+            query="${INPUT_SEARCH_QUERY}"
+          else
+            scope="${INPUT_TARGET:-repo:${GITHUB_REPOSITORY}}"
+
+            case "${INPUT_DATE_FIELD}" in
+              created|closed) date_field="${INPUT_DATE_FIELD}" ;;
+              *) echo "::error::Invalid date-field '${INPUT_DATE_FIELD}' (expected 'created' or 'closed')"; exit 1 ;;
+            esac
+
+            case "${INPUT_REPORT_TYPE}" in
+              weekly)
+                from="$(date -u -d '7 days ago' '+%Y-%m-%d')"
+                to="$(date -u -d 'today' '+%Y-%m-%d')"
+                ;;
+              monthly)
+                first_of_month="$(date -u '+%Y-%m-01')"
+                from="$(date -u -d "${first_of_month} -1 month" '+%Y-%m-%d')"
+                to="$(date -u -d "${first_of_month} -1 day" '+%Y-%m-%d')"
+                ;;
+              *)
+                echo "::error::Invalid report-type '${INPUT_REPORT_TYPE}' (expected 'weekly' or 'monthly')"
+                exit 1
+                ;;
+            esac
+
+            # Omitting is:issue / is:pr makes the search match both issues and pull requests.
+            query="${scope} ${date_field}:${from}..${to}"
+          fi
+
+          if [[ -n "${INPUT_SUFFIX}" ]]; then
+            query="${query} ${INPUT_SUFFIX}"
+          fi
+
+          echo "Search query: ${query}"
+          echo "search_query=${query}" >> "${GITHUB_OUTPUT}"
+        env:
+          INPUT_SEARCH_QUERY: ${{ inputs.search-query }}
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_DATE_FIELD: ${{ inputs.date-field }}
+          INPUT_REPORT_TYPE: ${{ inputs.report-type }}
+          INPUT_SUFFIX: ${{ inputs.search-query-suffix }}
+
+      - name: Run issue-metrics
+        uses: github-community-projects/issue-metrics@44173f9e0a3b2144a777a10a340e4c09a25ac9f8 # v4.2.8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEARCH_QUERY: ${{ steps.query.outputs.search_query }}
+          REPORT_TITLE: ${{ inputs.report-title }}
+          LABELS_TO_MEASURE: ${{ inputs.labels-to-measure }}
+          IGNORE_USERS: ${{ inputs.ignore-users }}
+          HIDE_PR_STATISTICS: false
+          ENABLE_MENTOR_COUNT: ${{ inputs.enable-mentor-count }}
+          MIN_MENTOR_COMMENTS: ${{ inputs.min-mentor-comments }}
+          MAX_COMMENTS_EVAL: ${{ inputs.max-comments-eval }}
+
+      - name: Write job summary
+        run: cat ./issue_metrics.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: issue-metrics-${{ inputs.report-type }}
+          path: ./issue_metrics.md
+          retention-days: 30
