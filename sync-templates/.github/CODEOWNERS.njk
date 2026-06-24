@@ -1,7 +1,12 @@
 {#- Remove leading dot if present (e.g., ".github" -> "github") -#}
 {%- set repo_name = repo.name | replace(".", "") -%}
-{%- set maintainers = maintainers_prefix + repo_name -%}
-{%- set approvers = approvers_prefix + repo_name -%}
+{#- Optional team_overrides map (repo name -> shared team) lets several repos
+    share a single owning team instead of deriving it from their own name,
+    e.g. blog and website owned by the docs team. Falls back to the repo name
+    when no override is provided. -#}
+{%- set team_name = team_overrides[repo_name] if (team_overrides and team_overrides[repo_name]) else repo_name -%}
+{%- set maintainers = maintainers_prefix + team_name -%}
+{%- set approvers = approvers_prefix + team_name -%}
 # Code Owners for {{ repo.fullName }}
 
 # ------------------------------------------------------------------------------

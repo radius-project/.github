@@ -50,6 +50,13 @@ group:
           maintainers_prefix: "@radius-project/maintainers-"
           approvers_prefix: "@radius-project/approvers-"
           oncall: "@radius-project/on-call"
+          # Repos that share an owning team instead of using their own repo
+          # name. blog and website are owned by the docs team, so they resolve
+          # to @radius-project/maintainers-docs and @radius-project/approvers-docs
+          # (docs itself already maps to the docs team via its repo name).
+          team_overrides:
+            blog: docs
+            website: docs
 
       - source: workflow-templates/dependency-review.yml
         dest: .github/workflows/dependency-review.yml
