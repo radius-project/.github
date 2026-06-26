@@ -6,6 +6,7 @@ group:
   # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+sort%3Aname-asc
   - repos: |
       radius-project/.github
+      radius-project/ai-extensions
       radius-project/bicep-types-aws
       radius-project/blog
       radius-project/community
@@ -109,6 +110,14 @@ group:
   - repos: |
       radius-project/community
       radius-project/recipes
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+
+  - repos: |
       radius-project/website
     files:
       - source: sync-templates/.github/dependabot.yml.njk
@@ -116,6 +125,8 @@ group:
         template:
           ecosystems:
             - type: github-actions
+            - type: gomod
+            - type: npm
 
   - repos: |
       radius-project/wellknown
@@ -199,8 +210,7 @@ group:
               directories:
                 - "/"
                 - "/typespec"
-                - "/hack/bicep-types-radius/src/autorest.bicep"
-                - "/hack/bicep-types-radius/src/generator"
+                - "/hack/bicep-types-radius/src/typespec-bicep-types"
             - type: devcontainers
 
   - repos: |
