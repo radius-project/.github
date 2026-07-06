@@ -106,6 +106,20 @@ group:
             - type: github-actions
               directories: ["/", "/workflow-templates"]
 
+  - repos: |
+      radius-project/ai-extensions
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: npm
+              directories:
+                - "/"
+                - "/radius-core"
+                - "/adapters/*"
+
   # github-actions only
   - repos: |
       radius-project/community
