@@ -30,6 +30,9 @@ group:
       - source: sync-templates/.editorconfig
         dest: .editorconfig
 
+      - source: sync-templates/.github/pull_request_template.md
+        dest: .github/pull_request_template.md
+
       - source: sync-templates/.github/linters/.markdownlint.yml
         dest: .github/linters/.markdownlint.yml
 
