@@ -30,9 +30,6 @@ group:
       - source: sync-templates/.editorconfig
         dest: .editorconfig
 
-      - source: sync-templates/.github/pull_request_template.md
-        dest: .github/pull_request_template.md
-
       - source: sync-templates/.github/linters/.markdownlint.yml
         dest: .github/linters/.markdownlint.yml
 
@@ -70,6 +67,29 @@ group:
 
       - source: workflow-templates/issue-metrics.yml
         dest: .github/workflows/issue-metrics.yml
+
+  # Pull request template - synced to all non-archived public repos plus the
+  # ai-extensions repo.
+  # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+visibility%3Apublic+sort%3Aname-asc
+  - repos: |
+      radius-project/.github
+      radius-project/ai-extensions
+      radius-project/bicep-types-aws
+      radius-project/blog
+      radius-project/community
+      radius-project/dashboard
+      radius-project/docs@edge
+      radius-project/lab
+      radius-project/radius
+      radius-project/recipes
+      radius-project/resource-types-contrib
+      radius-project/roadmap
+      radius-project/samples@edge
+      radius-project/skills
+      radius-project/website
+    files:
+      - source: sync-templates/.github/pull_request_template.md
+        dest: .github/pull_request_template.md
 
   - repos: |
       radius-project/radius
