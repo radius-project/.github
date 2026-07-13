@@ -102,7 +102,7 @@ jobs:
 
       - name: Post GitHub comment on failure
         if: failure()
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         continue-on-error: true
         with:
           header: spellcheck
@@ -114,7 +114,7 @@ jobs:
             You can add new custom words to [.cspellignore](${{ env.CSPELLIGNORE_LINK }}).
 
       - name: Clear GitHub comment on success
-        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         continue-on-error: true
         with:
           header: spellcheck
