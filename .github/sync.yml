@@ -97,6 +97,13 @@ group:
       - source: sync-templates/.github/instructions/shell.instructions.md
         dest: .github/instructions/shell.instructions.md
 
+  - repos: |
+      radius-project/radius
+      radius-project/ai-extensions
+    files:
+      - source: sync-templates/.github/instructions/markdown.instructions.md
+        dest: .github/instructions/markdown.instructions.md
+
   # Spellcheck (cspell) config and workflow for the documentation-heavy repos.
   # Destination workflow keeps the existing `.yaml` extension so it overwrites
   # the per-repo workflow instead of creating a duplicate.
