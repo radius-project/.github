@@ -111,6 +111,7 @@ group:
       radius-project/blog
       radius-project/docs@edge
       radius-project/radius
+      radius-project/resource-types-contrib
       radius-project/website
     files:
       - source: sync-templates/.github/linters/.cspell.yml
