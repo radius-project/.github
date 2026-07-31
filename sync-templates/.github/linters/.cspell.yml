@@ -130,7 +130,6 @@ ignorePaths:
   - "**/redirect/**"
   - "**/presentation-pack/**"
 
-
 # Default to checking both Markdown and YAML. CI also passes an explicit glob.
 files:
   - "**/*.{md,yaml,yml}"
