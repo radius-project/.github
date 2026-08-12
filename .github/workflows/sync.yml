@@ -52,7 +52,7 @@ jobs:
           set-env: false
 
       - name: Run Repo Files Sync
-        uses: raven-actions/repo-files-sync@55d376a5a2dc7afab91a134956afbb5ddb22bd42 # v0.1.0-rc.16
+        uses: raven-actions/repo-files-sync@511c602835ac7dd8529673f91afe348db8d08185 # v0.1.0-rc.18
         with:
           GH_TOKEN: ${{ steps.get-token.outputs.token }}
           CONFIG_PATH: ./.github/sync.yml
