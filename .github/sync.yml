@@ -148,8 +148,8 @@ group:
             - type: npm
               directories:
                 - "/"
-                - "/radius-core"
-                - "/adapters/*"
+                - "/packages/*"
+                - "/plugins/*"
 
   # github-actions only
   - repos: |
