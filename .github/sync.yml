@@ -246,6 +246,8 @@ group:
               directories:
                 - "/"
                 - "/.github/actions/*"
+                - "/.github/extension/*"
+                - "/.github/extension/actions/*"
             - type: gomod
               directories:
                 - "/"
