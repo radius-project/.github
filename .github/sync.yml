@@ -146,10 +146,6 @@ group:
           ecosystems:
             - type: github-actions
             - type: npm
-              directories:
-                - "/"
-                - "/packages/*"
-                - "/plugins/*"
 
   # github-actions only
   - repos: |
