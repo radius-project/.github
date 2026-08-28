@@ -128,7 +128,7 @@ jobs:
           INPUT_SUFFIX: ${{ inputs.search-query-suffix }}
 
       - name: Run issue-metrics
-        uses: github-community-projects/issue-metrics@df8c49d20958f9345281fa2124858bd0ad227e1f # v5.0.0
+        uses: github-community-projects/issue-metrics@61084fa9599a62c7821f06602e180a42d1c7a205 # v5.0.1
         env:
           GH_TOKEN: ${{ github.token }}
           SEARCH_QUERY: ${{ steps.query.outputs.search_query }}
