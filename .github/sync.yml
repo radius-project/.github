@@ -254,6 +254,10 @@ group:
                 - "/"
                 - "/typespec"
                 - "/hack/bicep-types-radius/src/typespec-bicep-types"
+            - type: docker
+              directories:
+                - "/"
+                - "/**/*"
             - type: devcontainers
 
   - repos: |
