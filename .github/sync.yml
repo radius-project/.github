@@ -68,10 +68,6 @@ group:
       - source: workflow-templates/issue-metrics.yml
         dest: .github/workflows/issue-metrics.yml
 
-  # PR author assignment PoC - enroll only Radius.
-  - repos: |
-      radius-project/radius
-    files:
       - source: workflow-templates/pr-author.yml
         dest: .github/workflows/pr-author.yml
 
