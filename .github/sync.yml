@@ -68,6 +68,9 @@ group:
       - source: workflow-templates/issue-metrics.yml
         dest: .github/workflows/issue-metrics.yml
 
+      - source: workflow-templates/pr-author.yml
+        dest: .github/workflows/pr-author.yml
+
   # Pull request template - synced to all non-archived public repos plus the
   # ai-extensions repo.
   # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+visibility%3Apublic+sort%3Aname-asc
