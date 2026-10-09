@@ -1,0 +1,101 @@
+---
+header:
+  schema-version: 2.2.0
+  last-updated: "2026-10-09"
+  last-reviewed: "2026-10-09"
+  url: https://raw.githubusercontent.com/radius-project/.github/main/security-insights.yml
+  comment: |
+    Parent Security Insights file for the Radius project. It holds the
+    project-level information that every Radius repository inherits. Each
+    repository publishes its own child file that sets header.project-si-source
+    to this file's url and contains only that repository's section.
+
+project:
+  name: Radius
+  homepage: https://radapp.io
+  steward:
+    uri: https://www.cncf.io/projects/radius/
+    comment: Radius is a Cloud Native Computing Foundation sandbox project.
+  administrators:
+    - name: radius-project/maintainers-radius
+      social: https://github.com/orgs/radius-project/teams/maintainers-radius
+      primary: true
+    - name: radius-project/maintainers-docs
+      social: https://github.com/orgs/radius-project/teams/maintainers-docs
+      primary: false
+    - name: radius-project/maintainers-samples
+      social: https://github.com/orgs/radius-project/teams/maintainers-samples
+      primary: false
+    - name: radius-project/maintainers-recipes
+      social: https://github.com/orgs/radius-project/teams/maintainers-recipes
+      primary: false
+    - name: radius-project/maintainers-resource-types-contrib
+      social: https://github.com/orgs/radius-project/teams/maintainers-resource-types-contrib
+      primary: false
+    - name: radius-project/maintainers-bicep-types-aws
+      social: https://github.com/orgs/radius-project/teams/maintainers-bicep-types-aws
+      primary: false
+    - name: radius-project/maintainers-dashboard
+      social: https://github.com/orgs/radius-project/teams/maintainers-dashboard
+      primary: false
+    - name: radius-project/maintainers-ai-extensions
+      social: https://github.com/orgs/radius-project/teams/maintainers-ai-extensions
+      primary: false
+  repositories:
+    - name: Radius
+      url: https://github.com/radius-project/radius
+      comment: Core Radius source code, deployment assets, and contributor documentation.
+    - name: Radius organization configuration
+      url: https://github.com/radius-project/.github
+      comment: |
+        Publishes this file, plus organization-wide reusable workflows and
+        configuration synced into the other Radius repositories.
+    - name: Radius AI Extensions
+      url: https://github.com/radius-project/ai-extensions
+      comment: Extensions and integrations with AI tools.
+    - name: Radius documentation
+      url: https://github.com/radius-project/docs
+      comment: Source for the Radius user documentation.
+    - name: Radius samples
+      url: https://github.com/radius-project/samples
+      comment: Quickstarts, reference applications, and tutorials.
+    - name: Radius resource types and recipes
+      url: https://github.com/radius-project/resource-types-contrib
+      comment: Community resource types and Recipe templates for Radius environments.
+    - name: Radius recipes
+      url: https://github.com/radius-project/recipes
+      comment: Community Recipe templates, tagged by the Radius release workflow.
+    - name: Radius dashboard
+      url: https://github.com/radius-project/dashboard
+      comment: Source code for the Radius dashboard.
+    - name: Radius website
+      url: https://github.com/radius-project/website
+      comment: Source code for the Radius project website.
+    - name: Radius AWS Bicep types
+      url: https://github.com/radius-project/bicep-types-aws
+      comment: Tooling that supports AWS resource types in Bicep.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    policy: https://github.com/radius-project/radius/blob/main/SECURITY.md
+    # SECURITY.md lists security@radapp.dev, but radapp.dev did not resolve on
+    # 2026-10-09 (lame DNS delegation), so the address cannot receive mail.
+    # Add a contact email once maintainers confirm a working address.
+    contact:
+      name: Radius maintainers
+      primary: true
+    in-scope:
+      - Source code repositories managed through the radius-project GitHub organization.
+    comment: |
+      Report suspected vulnerabilities privately through GitHub private
+      vulnerability reporting on radius-project/radius at
+      https://github.com/radius-project/radius/security/advisories/new,
+      including issues in other Radius repositories. Do not disclose
+      vulnerabilities through public GitHub issues.
+  documentation:
+    code-of-conduct: https://github.com/radius-project/community/blob/main/CODE-OF-CONDUCT.md
+    design: https://github.com/radius-project/radius/tree/main/eng/design-notes
+    detailed-guide: https://docs.radapp.io
+    quickstart-guide: https://docs.radapp.io/getting-started/
+    release-process: https://github.com/radius-project/radius/blob/main/docs/contributing/contributing-releases/README.md
+    support-policy: https://github.com/radius-project/radius/blob/main/SUPPORT.md
