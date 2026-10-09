@@ -1,0 +1,9 @@
+{
+  "name": "PR Author",
+  "description": "Assign an unassigned pull request to its human author using the organization reusable workflow.",
+  "iconName": "octicon person",
+  "categories": [
+    "Automation"
+  ],
+  "filePatterns": []
+}

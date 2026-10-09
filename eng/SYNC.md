@@ -25,6 +25,7 @@ This document describes the centralized file synchronization used across the `ra
   - [Examples](#examples)
   - [Workflow Relationship Diagram](#workflow-relationship-diagram)
   - [Usage Pattern](#usage-pattern)
+  - [PR Author Assignment (Radius PoC)](#pr-author-assignment-radius-poc)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -261,6 +262,7 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 | `__dependency-review.yml` | Runs dependency scanning with standard config |
 | `__lint.yml`              | Shared linting workflow                       |
 | `__build.yml`             | Shared build workflow                         |
+| `__pr-author.yml`         | Assigns unassigned human PRs to their author   |
 
 ### Workflow Relationship Diagram
 
@@ -292,6 +294,18 @@ jobs:
       contents: read
       pull-requests: write
 ```
+
+### PR Author Assignment (Radius PoC)
+
+PR author assignment is maintained in [the reusable master workflow](../.github/workflows/__pr-author.yml) and exposed through [a thin caller template](../workflow-templates/pr-author.yml). Its matching `pr-author.properties.json` metadata makes the template discoverable in the organization's GitHub Actions UI without automatically enrolling other repositories.
+
+On `opened` and `reopened`, the workflow assigns a human author only when the live PR is open and has no assignees. Bot-authored, closed, and already-assigned PRs are skipped. Existing assignees are never replaced. API errors and ignored assignment requests fail the run instead of silently succeeding.
+
+The caller uses `pull_request_target` to support fork PRs. This automation is **metadata-only**: never add PR checkout, PR code execution, or untrusted PR artifacts. The caller and master grant only `pull-requests: write`, and no custom secrets are required. The externally sourced action is pinned to a full commit SHA.
+
+The dedicated PR-author group in `.github/sync.yml` initially enrolls **only `radius-project/radius`**. After the central change merges into `main`, the existing Sync workflow opens a downstream PR that adds `.github/workflows/pr-author.yml` to Radius. Merge that sync PR to activate the workflow. Other repositories, including `.github` itself, are not automatically enrolled. Existing open PRs are not backfilled; the workflow handles new or reopened PRs after activation.
+
+To expand the rollout later, add approved repository names to the dedicated PR-author group rather than adding this mapping to the all-repository group. The caller follows the existing organization convention of referencing `__pr-author.yml@main`, so shared logic updates reach enrolled repositories without copying the implementation.
 
 ---
 

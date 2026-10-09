@@ -1,0 +1,7 @@
+{
+  "name": "Issue Metrics",
+  "description": "Scheduled issue and pull request metrics report.",
+  "iconName": "graph",
+  "categories": ["automation"],
+  "filePatterns": []
+}

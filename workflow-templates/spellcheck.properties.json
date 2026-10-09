@@ -1,0 +1,9 @@
+{
+  "name": "Spellcheck",
+  "description": "Spellcheck workflow template (cspell).",
+  "iconName": "book",
+  "categories": [
+    "code-quality"
+  ],
+  "filePatterns": []
+}

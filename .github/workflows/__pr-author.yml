@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - https://docs.github.com/en/rest/issues/assignees
+# Metadata-only workflow: never check out or execute pull request code.
+---
+name: __pr-author
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  pr-author:
+    if: github.event_name == 'pull_request_target'
+    name: Assign PR Author
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: pr-author-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Assign author if unassigned
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pullRequest = context.payload.pull_request;
+            const author = pullRequest.user;
+
+            if (author.type === 'Bot') {
+              core.info(`Skipping bot-authored pull request #${pullRequest.number}.`);
+              return;
+            }
+
+            const issueParams = {
+              ...context.repo,
+              issue_number: pullRequest.number
+            };
+            const { data: issue } = await github.rest.issues.get(issueParams);
+
+            if (issue.state !== 'open') {
+              core.info(`Pull request #${pullRequest.number} is closed; skipping assignment.`);
+              return;
+            }
+
+            if (issue.assignees.length > 0) {
+              core.info(`Pull request #${pullRequest.number} already has assignees; leaving them unchanged.`);
+              return;
+            }
+
+            const { data: updatedIssue } = await github.rest.issues.addAssignees({
+              ...issueParams,
+              assignees: [author.login]
+            });
+            const assigned = updatedIssue.assignees.some(
+              (assignee) => assignee.login.toLowerCase() === author.login.toLowerCase()
+            );
+
+            if (!assigned) {
+              core.setFailed(
+                `GitHub did not assign ${author.login} to pull request #${pullRequest.number}. ` +
+                'Check author eligibility and workflow permissions.'
+              );
+              return;
+            }
+
+            core.info(`Assigned ${author.login} to pull request #${pullRequest.number}.`);

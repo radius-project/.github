@@ -6,6 +6,7 @@ group:
   # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+sort%3Aname-asc
   - repos: |
       radius-project/.github
+      radius-project/ai-extensions
       radius-project/bicep-types-aws
       radius-project/blog
       radius-project/community
@@ -29,12 +30,34 @@ group:
       - source: sync-templates/.editorconfig
         dest: .editorconfig
 
+      - source: sync-templates/.github/linters/.markdownlint.yml
+        dest: .github/linters/.markdownlint.yml
+
+      - source: sync-templates/.github/linters/.markdownlint-cli2.yaml
+        dest: .github/linters/.markdownlint-cli2.yaml
+
+      - source: sync-templates/.github/linters/.prettierrc.yml
+        dest: .github/linters/.prettierrc.yml
+
+      - source: sync-templates/.github/linters/.shellcheckrc
+        dest: .github/linters/.shellcheckrc
+
+      - source: sync-templates/.github/linters/.yamllint.yml
+        dest: .github/linters/.yamllint.yml
+
       - source: sync-templates/.github/CODEOWNERS.njk
         dest: .github/CODEOWNERS
         template:
           maintainers_prefix: "@radius-project/maintainers-"
           approvers_prefix: "@radius-project/approvers-"
           oncall: "@radius-project/on-call"
+          # Repos that share an owning team instead of using their own repo
+          # name. blog and website are owned by the docs team, so they resolve
+          # to @radius-project/maintainers-docs and @radius-project/approvers-docs
+          # (docs itself already maps to the docs team via its repo name).
+          team_overrides:
+            blog: docs
+            website: docs
 
       - source: workflow-templates/dependency-review.yml
         dest: .github/workflows/dependency-review.yml
@@ -42,8 +65,244 @@ group:
       - source: workflow-templates/dependabot-manager.yml
         dest: .github/workflows/dependabot-manager.yml
 
+      - source: workflow-templates/issue-metrics.yml
+        dest: .github/workflows/issue-metrics.yml
+
+      - source: workflow-templates/pr-author.yml
+        dest: .github/workflows/pr-author.yml
+
+  # Pull request template - synced to all non-archived public repos plus the
+  # ai-extensions repo.
+  # source: https://github.com/orgs/radius-project/repositories?q=archived%3Afalse+visibility%3Apublic+sort%3Aname-asc
+  - repos: |
+      radius-project/.github
+      radius-project/ai-extensions
+      radius-project/bicep-types-aws
+      radius-project/blog
+      radius-project/community
+      radius-project/dashboard
+      radius-project/docs@edge
+      radius-project/lab
+      radius-project/radius
+      radius-project/recipes
+      radius-project/resource-types-contrib
+      radius-project/roadmap
+      radius-project/samples@edge
+      radius-project/skills
+      radius-project/website
+    files:
+      - source: sync-templates/.github/pull_request_template.md
+        dest: .github/pull_request_template.md
+
   - repos: |
       radius-project/radius
     files:
       - source: sync-templates/.github/instructions/shell.instructions.md
         dest: .github/instructions/shell.instructions.md
+
+  - repos: |
+      radius-project/radius
+      radius-project/ai-extensions
+    files:
+      - source: sync-templates/.github/instructions/markdown.instructions.md
+        dest: .github/instructions/markdown.instructions.md
+
+  # Spellcheck (cspell) config and workflow for the documentation-heavy repos.
+  # Destination workflow keeps the existing `.yaml` extension so it overwrites
+  # the per-repo workflow instead of creating a duplicate.
+  - repos: |
+      radius-project/blog
+      radius-project/docs@edge
+      radius-project/radius
+      radius-project/resource-types-contrib
+      radius-project/website
+    files:
+      - source: sync-templates/.github/linters/.cspell.yml
+        dest: .github/linters/.cspell.yml
+
+      - source: workflow-templates/spellcheck.yml
+        dest: .github/workflows/spellcheck.yaml
+
+  # ----------------------------------------------------------------------------
+  # Dependabot - generated per-repo from one universal template. Declare only the
+  # package ecosystems each repo uses. For single-path configs, omit `directory` to
+  # default to "/"; when using `directories:` (multi-path), include "/" explicitly.
+  # Template: sync-templates/.github/dependabot.yml.njk
+  # ----------------------------------------------------------------------------
+
+  - repos: |
+      radius-project/.github
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+              directories: ["/", "/workflow-templates"]
+
+  - repos: |
+      radius-project/ai-extensions
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: npm
+
+  # github-actions only
+  - repos: |
+      radius-project/community
+      radius-project/recipes
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+
+  - repos: |
+      radius-project/website
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+            - type: npm
+
+  - repos: |
+      radius-project/wellknown
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: devcontainers
+            - type: opentofu
+              directories: ["/**/*"]
+
+  - repos: |
+      radius-project/dashboard
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: npm
+            - type: devcontainers
+
+  - repos: |
+      radius-project/resource-types-contrib
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+            - type: devcontainers
+
+  - repos: |
+      radius-project/blog
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+              directory: /radblog
+            - type: npm
+              directory: /radblog
+
+  - repos: |
+      radius-project/bicep-types-aws
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gitsubmodule
+            - type: devcontainers
+            - type: gomod
+              directory: /src/aws-type-downloader
+            - type: npm
+              directory: /src/aws-type-generator
+
+  - repos: |
+      radius-project/radius
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+              directories:
+                - "/"
+                - "/.github/actions/*"
+            - type: gomod
+              directories:
+                - "/"
+                - "/test/magpiego"
+                - "/test/testrp"
+            - type: npm
+              directories:
+                - "/"
+                - "/typespec"
+                - "/hack/bicep-types-radius/src/typespec-bicep-types"
+            - type: docker
+              directories:
+                - "/"
+                - "/**/*"
+            - type: devcontainers
+
+  - repos: |
+      radius-project/docs@edge
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+              ignore:
+                - dependency-name: "Azure/static-web-apps-deploy"
+            - type: devcontainers
+            - type: gomod
+              directory: /docs
+            - type: npm
+              directory: /docs
+
+  - repos: |
+      radius-project/samples@edge
+    files:
+      - source: sync-templates/.github/dependabot.yml.njk
+        dest: .github/dependabot.yml
+        template:
+          ecosystems:
+            - type: github-actions
+            - type: gomod
+              directory: /samples/aws-sqs
+            - type: devcontainers
+            - type: gitsubmodule
+            - type: npm
+              directories:
+                - "/playwright"
+                - "/samples/dapr/nodeapp"
+                - "/samples/demo"
+                - "/samples/demo/client"
+              ignore:
+                - dependency-name: "*"
+                  update-types:
+                    - "version-update:semver-minor"
+                    - "version-update:semver-major"
+            - type: nuget
+              directories:
+                - "/samples/aws"
+                - "/samples/dapr/ui"
+            - type: pip
+              directory: /samples/volumes/src
