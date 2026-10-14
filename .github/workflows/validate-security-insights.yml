@@ -9,11 +9,11 @@ on:
       - main
     paths:
       - security-insights.yml
-      - .github/workflows/security-insights.yml
+      - .github/workflows/validate-security-insights.yml
   pull_request:
     paths:
       - security-insights.yml
-      - .github/workflows/security-insights.yml
+      - .github/workflows/validate-security-insights.yml
 
 permissions: {}
 
