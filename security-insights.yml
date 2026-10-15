@@ -1,0 +1,142 @@
+---
+header:
+  schema-version: 2.2.0
+  last-updated: "2026-10-13"
+  last-reviewed: "2026-10-13"
+  url: https://raw.githubusercontent.com/radius-project/.github/main/security-insights.yml
+  comment: |
+    Parent Security Insights file for the Radius project. It holds the
+    project-level information that every other Radius repository inherits.
+    This repository's data is included below. Each other repository publishes
+    a child file that sets header.project-si-source to this file's url and
+    contains only that repository's section.
+
+project:
+  name: Radius
+  homepage: https://radapp.io
+  steward:
+    uri: https://www.cncf.io/projects/radius/
+    comment: Radius is a Cloud Native Computing Foundation sandbox project.
+  administrators:
+    - name: Karishma Chawla
+      affiliation: Microsoft
+      social: https://github.com/kachawla
+      primary: false
+    - name: Nicole James
+      affiliation: Microsoft
+      social: https://github.com/nicolejms
+      primary: false
+    - name: Will Smith
+      affiliation: Microsoft
+      social: https://github.com/willdavsmith
+      primary: false
+    - name: Will Tsai
+      affiliation: Microsoft
+      social: https://github.com/willtsai
+      primary: false
+  repositories:
+    - name: Radius
+      url: https://github.com/radius-project/radius
+      comment: Core Radius source code, deployment assets, and contributor documentation.
+    - name: Radius organization configuration
+      url: https://github.com/radius-project/.github
+      comment: |
+        Publishes this file, plus organization-wide reusable workflows and
+        configuration synced into the other Radius repositories.
+    - name: Radius project metadata
+      url: https://github.com/radius-project/.project
+      comment: Project metadata used by CNCF automation.
+    - name: Radius AI Extensions
+      url: https://github.com/radius-project/ai-extensions
+      comment: Extensions and integrations with AI tools.
+    - name: Radius documentation
+      url: https://github.com/radius-project/docs
+      comment: Source for the Radius user documentation.
+    - name: Radius samples
+      url: https://github.com/radius-project/samples
+      comment: Quickstarts, reference applications, and tutorials.
+    - name: Radius resource types and recipes
+      url: https://github.com/radius-project/resource-types-contrib
+      comment: Community resource types and Recipe templates for Radius environments.
+    - name: Radius recipes
+      url: https://github.com/radius-project/recipes
+      comment: Community Recipe templates, tagged by the Radius release workflow.
+    - name: Radius dashboard
+      url: https://github.com/radius-project/dashboard
+      comment: Source code for the Radius dashboard.
+    - name: Radius website
+      url: https://github.com/radius-project/website
+      comment: Source code for the Radius project website.
+    - name: Radius AWS Bicep types
+      url: https://github.com/radius-project/bicep-types-aws
+      comment: Tooling that supports AWS resource types in Bicep.
+    - name: Radius blog
+      url: https://github.com/radius-project/blog
+      comment: Source for the Radius project blog.
+    - name: Radius community
+      url: https://github.com/radius-project/community
+      comment: Governance and community material for Radius.
+    - name: Radius lab
+      url: https://github.com/radius-project/lab
+      comment: Experimental Radius projects.
+    - name: Radius roadmap
+      url: https://github.com/radius-project/roadmap
+      comment: Planning material for the Radius project roadmap.
+    - name: Radius skills
+      url: https://github.com/radius-project/skills
+      comment: Agent skills for modeling applications with Radius.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    policy: https://github.com/radius-project/radius/blob/main/SECURITY.md
+    contact:
+      name: Radius maintainers
+      email: security@radapp.dev
+      primary: true
+    comment: |
+      Report suspected vulnerabilities to security@radapp.dev as documented in
+      SECURITY.md. GitHub private vulnerability reporting is also available on
+      radius-project/radius at
+      https://github.com/radius-project/radius/security/advisories/new,
+      including issues in other Radius repositories. Do not disclose
+      vulnerabilities through public GitHub issues.
+  documentation:
+    code-of-conduct: https://github.com/radius-project/community/blob/main/CODE-OF-CONDUCT.md
+    design: https://github.com/radius-project/radius/tree/main/eng/design-notes
+    detailed-guide: https://docs.radapp.io
+    quickstart-guide: https://docs.radapp.io/getting-started/
+    release-process: https://github.com/radius-project/radius/blob/main/docs/contributing/contributing-releases/README.md
+
+repository:
+  url: https://github.com/radius-project/.github
+  status: active
+  accepts-change-request: true
+  accepts-automated-change-request: true
+  core-team:
+    - name: Karishma Chawla
+      affiliation: Microsoft
+      social: https://github.com/kachawla
+      primary: false
+    - name: Nicole James
+      affiliation: Microsoft
+      social: https://github.com/nicolejms
+      primary: false
+    - name: Will Smith
+      affiliation: Microsoft
+      social: https://github.com/willdavsmith
+      primary: false
+    - name: Will Tsai
+      affiliation: Microsoft
+      social: https://github.com/willtsai
+      primary: false
+  license:
+    url: https://github.com/radius-project/.github/blob/main/LICENSE
+    expression: Apache-2.0
+  documentation:
+    governance: https://github.com/radius-project/community/blob/main/community-membership.md
+    review-policy: https://github.com/radius-project/radius/blob/main/docs/contributing/contributing-code/contributing-code-reviewing/README.md
+    security-policy: https://github.com/radius-project/radius/blob/main/SECURITY.md
+  security:
+    assessments:
+      self:
+        comment: Self-assessment completion has not been established for this repository.
