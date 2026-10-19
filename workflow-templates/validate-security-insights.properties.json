@@ -1,0 +1,9 @@
+{
+  "name": "Security Insights",
+  "description": "Validate security-insights.yml against the OpenSSF Security Insights schema using the organization reusable workflow.",
+  "iconName": "octicon shield-check",
+  "categories": [
+    "Security"
+  ],
+  "filePatterns": []
+}
