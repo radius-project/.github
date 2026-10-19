@@ -1,0 +1,118 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
+# docs: ../pr-status-labels/README.md#label-catalog
+# Merges shared label catalogs from this repository's labels/ directory with a
+# repository's own catalog, then syncs them without deleting other labels.
+---
+name: Labels
+description: Merge shared label catalogs with a repository label catalog and sync them without deleting existing labels.
+author: radius-project
+
+inputs:
+  yaml-file:
+    description: >-
+      Repository label catalog, relative to the workspace. Its entries win over
+      shared entries with the same name or from_name. A missing file syncs only
+      the shared catalogs.
+    required: false
+    default: .github/labels.yml
+  catalogs:
+    description: Newline-separated shared catalog names from labels/ in radius-project/.github (without the .yml extension).
+    required: false
+    default: pr-status
+  dry-run:
+    description: Preview changes without applying them.
+    required: false
+    default: "false"
+  github-token:
+    description: Token used to read and update repository labels.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  yaml-file:
+    description: Path to the merged label catalog.
+    value: ${{ steps.merge.outputs.file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Merge label catalogs
+      id: merge
+      shell: bash
+      env:
+        CATALOG_DIR: ${{ github.action_path }}/../../../labels
+        CATALOGS: ${{ inputs.catalogs }}
+        YAML_FILE: ${{ inputs.yaml-file }}
+      run: |
+        set -euo pipefail
+
+        valid='(tag == "!!seq" or tag == "!!null") and ((. // []) | all_c(tag == "!!map" and (.name | tag) != "!!null" and (.name | kind) == "scalar" and (.name | tostring | length) > 0))'
+
+        shared_files=()
+        while read -r catalog; do
+          [[ -z "${catalog}" ]] && continue
+          if [[ ! "${catalog}" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "::error::Invalid shared label catalog name: ${catalog}"
+            exit 1
+          fi
+          file="${CATALOG_DIR}/${catalog}.yml"
+          if [[ ! -f "${file}" ]]; then
+            echo "::error::Unknown shared label catalog: ${catalog}"
+            exit 1
+          fi
+          shared_files+=("${file}")
+        done < <(tr ', ' '\n' <<< "${CATALOGS}")
+        if [[ "${#shared_files[@]}" -eq 0 ]]; then
+          echo "::error::At least one shared label catalog is required"
+          exit 1
+        fi
+
+        local_file="${RUNNER_TEMP}/labels-local.yml"
+        if [[ -f "${YAML_FILE}" ]]; then
+          cp "${YAML_FILE}" "${local_file}"
+        else
+          echo "No ${YAML_FILE}; syncing only the shared label catalogs."
+          echo "[]" > "${local_file}"
+        fi
+
+        for file in "${shared_files[@]}"; do
+          if ! yq --exit-status "${valid}" "${file}" > /dev/null; then
+            echo "::error::Shared label catalog ${file##*/} must be a list of labels, each with a name"
+            exit 1
+          fi
+        done
+        if ! yq --exit-status "${valid}" "${local_file}" > /dev/null; then
+          echo "::error::${YAML_FILE} must be a list of labels, each with a name"
+          exit 1
+        fi
+
+        shared_file="${RUNNER_TEMP}/labels-shared.yml"
+        merged_file="${RUNNER_TEMP}/labels-merged.yml"
+        # yq expressions, not shell expansions.
+        # shellcheck disable=SC2016
+        yq eval-all '. as $item ireduce ([]; . + ($item // []))' "${shared_files[@]}" > "${shared_file}"
+        # Repository entries win over shared entries with the same name or from_name.
+        # shellcheck disable=SC2016
+        LOCAL_FILE="${local_file}" SHARED_FILE="${shared_file}" yq --null-input '
+          (load(strenv(LOCAL_FILE)) // []) as $local |
+          [$local[] | (.name, .from_name) | select(. != null) | tostring | downcase] as $taken |
+          [(load(strenv(SHARED_FILE)) // [])[] | select((.name | tostring | downcase) as $name | $taken | any_c(. == $name) | not)] + $local
+        ' > "${merged_file}"
+
+        if ! yq --exit-status '[.[] | .name | tostring | downcase] | length == (unique | length)' "${merged_file}" > /dev/null; then
+          echo "::error::The merged label catalog defines a label more than once (ignoring case)"
+          exit 1
+        fi
+
+        echo "::group::Merged label catalog"
+        cat "${merged_file}"
+        echo "::endgroup::"
+        echo "file=${merged_file}" >> "${GITHUB_OUTPUT}"
+
+    - name: Sync labels
+      uses: crazy-max/ghaction-github-labeler@548a7c3603594ec17c819e1239f281a3b801ab4d # v6.0.0
+      with:
+        github-token: ${{ inputs.github-token }}
+        yaml-file: ${{ steps.merge.outputs.file }}
+        dry-run: ${{ inputs.dry-run }}
+        skip-delete: true

@@ -26,6 +26,7 @@ This document describes the centralized file synchronization used across the `ra
   - [Workflow Relationship Diagram](#workflow-relationship-diagram)
   - [Usage Pattern](#usage-pattern)
   - [PR Author Assignment (Radius PoC)](#pr-author-assignment-radius-poc)
+  - [PR Status Labels](#pr-status-labels)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -89,9 +90,12 @@ flowchart TB
 .github/
 ├── .github/                             # GitHub-specific configurations for THIS repo
 │   ├── sync.yml                         # ⚙️ SYNC CONFIGURATION FILE
+│   ├── actions/                         # Shared actions used by reusable workflows
 │   └── workflows/
 │       ├── sync.yml                     # ⚙️ SYNC WORKFLOW
 │       └── __<workflow-name>.yml        # Reusable workflows (prefixed with __)
+│
+├── labels/                              # 📁 Shared label catalogs (synced by __labels.yml)
 │
 ├── sync-templates/                      # 📁 Static files and nunjucks templates to sync
 │   ├── <static-file>                    # Files synced as-is (no transformation)
@@ -262,7 +266,10 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 | `__dependency-review.yml` | Runs dependency scanning with standard config |
 | `__lint.yml`              | Shared linting workflow                       |
 | `__build.yml`             | Shared build workflow                         |
-| `__pr-author.yml`         | Assigns unassigned human PRs to their author   |
+| `__pr-author.yml`         | Assigns unassigned human PRs to their author  |
+| `__pr-status-labels.yml`  | Applies PR lifecycle labels                   |
+| `__pr-holds.yml`          | Fails when a PR carries a manual hold label   |
+| `__labels.yml`            | Syncs shared and repository label catalogs    |
 
 ### Workflow Relationship Diagram
 
@@ -306,6 +313,12 @@ The caller uses `pull_request_target` to support fork PRs. This automation is **
 The dedicated PR-author group in `.github/sync.yml` initially enrolls **only `radius-project/radius`**. After the central change merges into `main`, the existing Sync workflow opens a downstream PR that adds `.github/workflows/pr-author.yml` to Radius. Merge that sync PR to activate the workflow. Other repositories, including `.github` itself, are not automatically enrolled. Existing open PRs are not backfilled; the workflow handles new or reopened PRs after activation.
 
 To expand the rollout later, add approved repository names to the dedicated PR-author group rather than adding this mapping to the all-repository group. The caller follows the existing organization convention of referencing `__pr-author.yml@main`, so shared logic updates reach enrolled repositories without copying the implementation.
+
+### PR Status Labels
+
+PR lifecycle labeling is maintained in [the PR Status Labels action](../.github/actions/pr-status-labels/README.md) and [its reusable workflow](../.github/workflows/__pr-status-labels.yml), which loads the action from the same commit with the `$/` self-repository syntax. Three thin caller templates are synced together: [`pr-status-labels.yml`](../workflow-templates/pr-status-labels.yml), the read-only [`pr-review-signal.yml`](../workflow-templates/pr-review-signal.yml) relay, and [`labels.yml`](../workflow-templates/labels.yml), which merges the shared [`labels/pr-status.yml`](../labels/pr-status.yml) catalog with each repository's own `.github/labels.yml`.
+
+The dedicated PR status labels group in `.github/sync.yml` initially enrolls **only `radius-project/.github`**. Add a repository to that group only after its own lifecycle-label workflows are removed, so only one writer updates its labels. See [Opting a repository in](../.github/actions/pr-status-labels/README.md#opting-a-repository-in).
 
 ---
 

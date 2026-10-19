@@ -1,0 +1,9 @@
+{
+  "name": "PR Status Labels",
+  "description": "Apply pull request lifecycle labels from review, mergeability, and merge queue state using the organization reusable workflow. Requires the PR Review Signal template.",
+  "iconName": "octicon tag",
+  "categories": [
+    "Automation"
+  ],
+  "filePatterns": []
+}

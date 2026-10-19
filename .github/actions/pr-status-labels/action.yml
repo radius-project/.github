@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
+# docs: ./README.md
+# Metadata-only action: never check out or execute pull request code. The
+# script and default label names are loaded from this action's own directory.
+---
+name: PR Status Labels
+description: Reconcile pull request lifecycle labels, or reject manual merge holds, without checking out pull request code.
+author: radius-project
+
+inputs:
+  mode:
+    description: >-
+      `reconcile` updates the lifecycle labels for the triggering event.
+      `check-holds` fails when the pull request carries a manual hold label.
+    required: false
+    default: reconcile
+  labels:
+    description: >-
+      Optional JSON object that overrides default label names, for example
+      {"manual":{"doNotMerge":"do-not-merge"}}. Omitted keys keep their
+      defaults. Leave empty to use labels.json unchanged.
+    required: false
+    default: ""
+  pr-number:
+    description: >-
+      Pull request to reconcile on workflow_dispatch. Leave empty to reconcile
+      every open pull request. Ignored for other events.
+    required: false
+    default: ""
+  review-signal-workflow:
+    description: >-
+      Name of the read-only workflow whose completed workflow_run events signal
+      review activity. Other workflow_run events are ignored.
+    required: false
+    default: PR Review Signal
+  github-token:
+    description: Token used for GitHub API calls.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  labels:
+    description: Validated label-name mapping as JSON, with `states` and `manual` sections.
+    value: ${{ steps.run.outputs.labels }}
+  holds:
+    description: JSON array of manual hold labels found on the pull request. Set only in `check-holds` mode.
+    value: ${{ steps.run.outputs.holds }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run PR status labels
+      id: run
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        PR_STATUS_ACTION_PATH: ${{ github.action_path }}
+        PR_STATUS_MODE: ${{ inputs.mode }}
+        PR_STATUS_LABELS: ${{ inputs.labels }}
+        PR_STATUS_PR_NUMBER: ${{ inputs.pr-number }}
+        PR_STATUS_REVIEW_SIGNAL_WORKFLOW: ${{ inputs.review-signal-workflow }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { default: run } = await import(
+            `${process.env.PR_STATUS_ACTION_PATH}/pr-status-labels.mjs`
+          )
+          await run({ github, context, core }, {
+            mode: process.env.PR_STATUS_MODE,
+            labels: process.env.PR_STATUS_LABELS,
+            prNumber: process.env.PR_STATUS_PR_NUMBER,
+            reviewSignalWorkflow: process.env.PR_STATUS_REVIEW_SIGNAL_WORKFLOW
+          })

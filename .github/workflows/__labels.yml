@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - ../actions/pr-status-labels/README.md#label-catalog
+# - https://github.com/crazy-max/ghaction-github-labeler
+# Shared catalogs are merged with the repository's own label catalog. Labels
+# that neither catalog defines are never deleted.
+---
+name: __labels
+
+on:
+  workflow_call:
+    inputs:
+      yaml-file:
+        description: Repository label catalog. Its entries win over shared entries with the same name or from_name.
+        type: string
+        required: false
+        default: .github/labels.yml
+      catalogs:
+        description: Newline-separated shared catalog names from labels/ in radius-project/.github.
+        type: string
+        required: false
+        default: pr-status
+
+permissions: {}
+
+jobs:
+  preview:
+    if: github.event_name == 'pull_request'
+    name: Preview label changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      # The proposed catalog is data only; it is parsed by trusted code with a
+      # read-only token and applied as a dry run.
+      - name: Checkout proposed labels
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: ${{ inputs.yaml-file }}
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Preview label changes
+        uses: $/.github/actions/labels
+        with:
+          yaml-file: ${{ inputs.yaml-file }}
+          catalogs: ${{ inputs.catalogs }}
+          dry-run: true
+
+  sync:
+    if: >-
+      (github.event_name == 'label' ||
+       ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
+       (github.event_name == 'schedule' && github.repository_owner == 'radius-project'))
+    name: Sync labels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout trusted labels
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: ${{ inputs.yaml-file }}
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Sync labels
+        uses: $/.github/actions/labels
+        with:
+          yaml-file: ${{ inputs.yaml-file }}
+          catalogs: ${{ inputs.catalogs }}

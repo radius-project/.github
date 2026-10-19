@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - ../actions/pr-status-labels/README.md#hold-check
+# Read-only workflow: never check out or execute pull request code. The hold
+# check reads only the event's pull request labels and makes no API calls.
+---
+name: __pr-holds
+
+on:
+  workflow_call:
+    inputs:
+      labels:
+        description: Optional JSON object that overrides default label names (for example vars.PR_STATUS_LABELS).
+        type: string
+        required: false
+        default: ""
+    outputs:
+      holds:
+        description: JSON array of manual hold labels found on the pull request.
+        value: ${{ jobs.holds.outputs.holds }}
+
+permissions: {}
+
+jobs:
+  holds:
+    name: Check merge holds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      holds: ${{ steps.check.outputs.holds }}
+    steps:
+      # `$/` resolves to this repository at the commit of this reusable
+      # workflow, so callers can reference the workflow at @main.
+      - name: Reject merge holds and pending author responses
+        id: check
+        uses: $/.github/actions/pr-status-labels
+        with:
+          mode: check-holds
+          labels: ${{ inputs.labels }}
