@@ -113,23 +113,45 @@ export function resolveLabels(override = "") {
   });
 }
 
-// Default hold names stay blocking so a rename, or a run without the override,
-// cannot bypass a hold that still uses a default name.
+// Each manual hold matches its configured name and its default name, ignoring
+// case, so a rename, a run without the override, or a differently cased label
+// cannot bypass a hold. A default name configured for another label keeps only
+// that configured meaning.
+function holdNames(labels) {
+  const configured = new Set(
+    [...Object.values(labels.states), ...Object.values(labels.manual)].map(
+      (name) => name.toLowerCase()
+    )
+  );
+  const names = {};
+  for (const [kind, name] of Object.entries(labels.manual)) {
+    const fallback = DEFAULT_MANUAL_LABELS[kind].toLowerCase();
+    names[kind] = new Set([name.toLowerCase()]);
+    if (!configured.has(fallback)) {
+      names[kind].add(fallback);
+    }
+  }
+  return names;
+}
+
+// Shared by check-holds, dequeueing and classification.
+function manualHolds(existing, labels) {
+  const names = holdNames(labels);
+  const has = (kind) =>
+    [...existing].some((name) => names[kind].has(name.toLowerCase()));
+  return {
+    doNotMerge: has("doNotMerge"),
+    needsAuthorResponse: has("needsAuthorResponse")
+  };
+}
+
 export function heldLabels(pullRequest, labels) {
   if (!Array.isArray(pullRequest?.labels)) {
     throw new Error("Holds can only be checked for a pull request event");
   }
-  const statusNames = new Set(
-    Object.values(labels.states).map((name) => name.toLowerCase())
-  );
   const names = new Set(
-    Object.values(DEFAULT_MANUAL_LABELS)
-      .map((name) => name.toLowerCase())
-      .filter((name) => !statusNames.has(name))
+    Object.values(holdNames(labels)).flatMap((kind) => [...kind])
   );
-  for (const name of Object.values(labels.manual)) {
-    names.add(name.toLowerCase());
-  }
   return pullRequest.labels
     .filter((label) => names.has(label.name.toLowerCase()))
     .map((label) => label.name);
@@ -736,8 +758,9 @@ function desiredLabels(
   hasOutstandingHumanChanges = false,
   unresolvedBlockingBotFeedback = false
 ) {
-  const { states: STATUS_LABELS, manual: MANUAL_LABELS } = labels;
+  const { states: STATUS_LABELS } = labels;
   const existing = currentLabels(pull);
+  const holds = manualHolds(existing, labels);
   const desired = new Set();
 
   if (pull.state !== "OPEN") {
@@ -758,7 +781,7 @@ function desiredLabels(
     desired.add(STATUS_LABELS.needsRebase);
   }
 
-  if (pull.isDraft || existing.has(MANUAL_LABELS.doNotMerge)) {
+  if (pull.isDraft || holds.doNotMerge) {
     return { desired, mergeabilityUnknown };
   }
 
@@ -771,10 +794,7 @@ function desiredLabels(
   }
 
   let handoff;
-  if (
-    existing.has(MANUAL_LABELS.needsAuthorResponse) ||
-    unresolvedBlockingBotFeedback
-  ) {
+  if (holds.needsAuthorResponse || unresolvedBlockingBotFeedback) {
     handoff = STATUS_LABELS.waitingForAuthor;
   } else if (
     unresolvedReviewFeedback ||
@@ -1084,7 +1104,6 @@ async function hasPassingRequiredChecks(github, owner, repo, number, pull) {
 }
 
 async function syncPull(github, core, owner, repo, number, labels) {
-  const { manual: MANUAL_LABELS } = labels;
   const MANAGED_LABELS = Object.values(labels.states);
   const result = await github.graphql(query, {
     owner,
@@ -1098,11 +1117,11 @@ async function syncPull(github, core, owner, repo, number, labels) {
   }
 
   const existing = currentLabels(pull);
+  const holds = manualHolds(existing, labels);
   if (
     pull.state === "OPEN" &&
     pull.isInMergeQueue &&
-    (existing.has(MANUAL_LABELS.doNotMerge) ||
-      existing.has(MANUAL_LABELS.needsAuthorResponse))
+    (holds.doNotMerge || holds.needsAuthorResponse)
   ) {
     // DequeuePullRequestInput.id is the pull request node ID.
     await github.graphql(
@@ -1127,8 +1146,8 @@ async function syncPull(github, core, owner, repo, number, labels) {
   if (
     pull.state === "OPEN" &&
     !pull.isDraft &&
-    !existing.has(MANUAL_LABELS.doNotMerge) &&
-    !existing.has(MANUAL_LABELS.needsAuthorResponse)
+    !holds.doNotMerge &&
+    !holds.needsAuthorResponse
   ) {
     submittedReviews = await github.paginate(github.rest.pulls.listReviews, {
       owner,
@@ -1176,8 +1195,8 @@ async function syncPull(github, core, owner, repo, number, labels) {
       !hasUnresolvedReviewFeedback &&
       !blockingBotFeedback &&
       pull.reviewDecision === null &&
-      !existing.has(MANUAL_LABELS.doNotMerge) &&
-      !existing.has(MANUAL_LABELS.needsAuthorResponse)
+      !holds.doNotMerge &&
+      !holds.needsAuthorResponse
     ) ?
       await inferredReviewDecision(github, core, owner, repo, number, pull)
     : pull.reviewDecision;
@@ -1188,8 +1207,8 @@ async function syncPull(github, core, owner, repo, number, labels) {
     !pull.isDraft &&
     !blockingBotFeedback &&
     (feedback.size > 0 || reviewDecision === "CHANGES_REQUESTED") &&
-    !existing.has(MANUAL_LABELS.doNotMerge) &&
-    !existing.has(MANUAL_LABELS.needsAuthorResponse)
+    !holds.doNotMerge &&
+    !holds.needsAuthorResponse
   ) {
     const timeline = await github.paginate(
       github.rest.issues.listEventsForTimeline,
@@ -1230,8 +1249,8 @@ async function syncPull(github, core, owner, repo, number, labels) {
     pull.mergeable === "MERGEABLE" &&
     pull.mergeStateStatus === "BEHIND" &&
     !pull.isInMergeQueue &&
-    !existing.has(MANUAL_LABELS.doNotMerge) &&
-    !existing.has(MANUAL_LABELS.needsAuthorResponse)
+    !holds.doNotMerge &&
+    !holds.needsAuthorResponse
   ) {
     requiredChecksPassed = await hasPassingRequiredChecks(
       github,

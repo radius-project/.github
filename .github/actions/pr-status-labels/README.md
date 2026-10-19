@@ -66,7 +66,9 @@ The workflow also adds **`pr:needs-rebase`** when the PR has merge conflicts, an
 
 The status workflow does not provision label definitions; the [label catalog](#label-catalog) sync does. Unrelated repository labels are preserved.
 
-Draft PRs have no handoff label. Maintainers can apply **`pr:do-not-merge`** to pause a PR; it removes the handoff and queue-ready labels. Use **`pr:needs-author-response`** for an explicit author-response request, including actionable general discussion outside inline review threads, then remove it after the author responds. The workflow never applies or removes these manual labels. Both manual labels fail the [hold check](#hold-check) and remove a PR from the merge queue if it was already queued.
+Draft PRs have no handoff label. Maintainers can apply **`pr:do-not-merge`** to pause a PR; it removes the handoff and queue-ready labels. Use **`pr:needs-author-response`** for an explicit author-response request, including actionable general discussion outside inline review threads, then remove it after the author responds; it sets the handoff to `pr:waiting-for-author`. The workflow never applies or removes these manual labels. Both manual labels fail the [hold check](#hold-check) and remove a PR from the merge queue if it was already queued.
+
+The reconciler and the hold check use the same hold matching. Each manual hold matches its configured name and its default name, ignoring case, so a renamed hold, a run without the override, or a differently cased label such as `PR:DO-NOT-MERGE` still holds the PR. A default name that is configured for another label keeps only its configured meaning.
 
 ## Configuration
 
@@ -153,7 +155,7 @@ Pin the action to a full-length commit SHA, with a `# main` comment. When a repo
 
 Trigger the workflow on `pull_request` with at least `opened`, `reopened`, `labeled`, `unlabeled`, and `synchronize`. Also trigger it on `merge_group` if the check is required in a merge queue. The step fails on any event without a pull request payload, so skip it for `merge_group` as shown. Held PRs are dequeued by the reconciler, so the merge-group run can pass.
 
-The check matches label names ignoring case. It always treats the default hold names as holds, in addition to any renamed holds, unless a default name is reused for a status label. This preserves holds during a rename and in fork runs without the variable. GitHub does not pass configuration variables to `pull_request` runs from forks, so a renamed hold is only recognized on fork PRs if the override is written literally in the step.
+The check uses the same [hold matching](#handoff-labels) as the reconciler: label names match ignoring case, and the default hold names stay holds alongside any renamed holds unless a default name is configured for another label. This preserves holds during a rename and in fork runs without the variable. GitHub does not pass configuration variables to `pull_request` runs from forks, so a renamed hold is only recognized on fork PRs if the override is written literally in the step.
 
 ## Label catalog
 
