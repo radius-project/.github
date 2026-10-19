@@ -143,11 +143,13 @@ jobs:
     steps:
       - name: Reject merge holds and pending author responses
         if: github.event_name != 'merge_group'
-        uses: radius-project/.github/.github/actions/pr-status-labels@main
+        uses: radius-project/.github/.github/actions/pr-status-labels@<full-length-commit-sha> # main
         with:
           mode: check-holds
           labels: ${{ vars.PR_STATUS_LABELS }}
 ```
+
+Pin the action to a full-length commit SHA, with a `# main` comment. When a repository requires actions to be pinned to a full-length commit SHA (the Actions setting `sha_pinning_required`, enabled on `radius-project/radius` and `radius-project/.github`), every action must be pinned, including actions from this organization, so an `@main` step reference fails. Reusable workflow calls (`__*.yml@main`) and the `$/` references inside them are not affected. The SHA must be a commit on this repository's `main` branch that contains the action, such as the merge commit of the pull request that added or last changed it. Never pin a pull request head commit, which is unreviewed and can disappear after a squash merge. Update the pin deliberately when the action changes on `main`.
 
 Trigger the workflow on `pull_request` with at least `opened`, `reopened`, `labeled`, `unlabeled`, and `synchronize`. Also trigger it on `merge_group` if the check is required in a merge queue. The step fails on any event without a pull request payload, so skip it for `merge_group` as shown. Held PRs are dequeued by the reconciler, so the merge-group run can pass.
 
