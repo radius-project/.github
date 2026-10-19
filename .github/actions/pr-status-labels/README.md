@@ -19,6 +19,7 @@ The logic lives once in this repository. Other repositories in the organization 
 | ---- | ------- |
 | [`.github/actions/pr-status-labels/`](./action.yml) | Composite action holding the reconciler script and the default label names in [`labels.json`](./labels.json). Supports `reconcile` and `check-holds` modes. |
 | [`.github/workflows/__pr-status-labels.yml`](../../workflows/__pr-status-labels.yml) | Reusable workflow holding the writer job, its permissions, and its run filter. Loads the action with `$/` at the same commit. |
+| [`.github/workflows/__pr-holds.yml`](../../workflows/__pr-holds.yml) | Reusable workflow that runs the [hold check](#hold-check) with no token permissions. Loads the action with `$/` at the same commit. |
 | [`workflow-templates/pr-status-labels.yml`](../../../workflow-templates/pr-status-labels.yml) | Caller (`PR Status Labels`) with the triggers and the repository-wide concurrency group. |
 | [`workflow-templates/pr-review-signal.yml`](../../../workflow-templates/pr-review-signal.yml) | Read-only relay (`PR Review Signal`) for review and inline-comment events. |
 | [`labels/pr-status.yml`](../../../labels/pr-status.yml) | Shared definitions (colors and descriptions) of the lifecycle and hold labels. |
@@ -134,28 +135,46 @@ Release-impact labels and review or merge policy are not configured here.
 
 ## Hold check
 
-The `check-holds` mode fails when the pull request carries a manual hold label. It reads only the event's pull request labels, needs no checkout, and makes no API calls. Use it as a step so the job, and therefore the required check name, stays in the calling repository. Do not move it into a reusable-workflow job, because the check context would become `caller / called` and no longer match the ruleset.
+[`__pr-holds.yml`](../../workflows/__pr-holds.yml) is a reusable workflow that fails when the pull request carries a manual hold label. It runs the action's `check-holds` mode, which reads only the event's pull request labels, needs no checkout, makes no API calls, and runs with no token permissions.
+
+| Input | Default | Description |
+| ----- | ------- | ----------- |
+| `labels` | `""` | Optional JSON object that overrides default label names, the same partial override the action accepts. |
+
+| Output | Description |
+| ------ | ----------- |
+| `holds` | JSON array of manual hold labels found on the pull request. |
+
+Call it from a `pull_request` workflow and gate the repository's own required job on it, failing closed:
 
 ```yaml
 jobs:
-  pr-required-labels:
+  merge-holds:
+    if: github.event_name != 'merge_group'
+    uses: radius-project/.github/.github/workflows/__pr-holds.yml@main
+    permissions: {}
+    with:
+      labels: ${{ vars.PR_STATUS_LABELS }}
+
+  <required-job>:
+    needs: merge-holds
+    if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    permissions: {}
     steps:
-      - name: Reject merge holds and pending author responses
-        if: github.event_name != 'merge_group'
-        uses: radius-project/.github/.github/actions/pr-status-labels@<full-length-commit-sha> # main
-        with:
-          mode: check-holds
-          labels: ${{ vars.PR_STATUS_LABELS }}
+      - name: Require successful merge-hold validation
+        if: github.event_name != 'merge_group' && needs.merge-holds.result != 'success'
+        run: exit 1
+      # The required job's other steps follow.
 ```
 
-Pin the action to a full-length commit SHA, with a `# main` comment. When a repository requires actions to be pinned to a full-length commit SHA (the Actions setting `sha_pinning_required`, enabled on `radius-project/radius` and `radius-project/.github`), every action must be pinned, including actions from this organization, so an `@main` step reference fails. Reusable workflow calls (`__*.yml@main`) and the `$/` references inside them are not affected. The SHA must be a commit on this repository's `main` branch that contains the action, such as the merge commit of the pull request that added or last changed it. Never pin a pull request head commit, which is unreviewed and can disappear after a squash merge. Update the pin deliberately when the action changes on `main`.
+The required status check stays the calling repository's own job (`<required-job>`), so its context name and the ruleset do not change. That job fails whenever the hold check fails, is skipped, or is cancelled. The hold check also reports its own `merge-holds / Check merge holds` context, which does not need to be required.
 
-Trigger the workflow on `pull_request` with at least `opened`, `reopened`, `labeled`, `unlabeled`, and `synchronize`. Also trigger it on `merge_group` if the check is required in a merge queue. The step fails on any event without a pull request payload, so skip it for `merge_group` as shown. Held PRs are dequeued by the reconciler, so the merge-group run can pass.
+Use the reusable workflow rather than calling the action as a step. When a repository requires actions to be pinned to a full-length commit SHA (the Actions setting `sha_pinning_required`, enabled on `radius-project/radius` and `radius-project/.github`), a step-level reference to this repository's action must use a full commit SHA. Reusable workflows may still be referenced at `@main`, and the `$/` reference inside `__pr-holds.yml` resolves to the same commit, so the reusable workflow is the supported path.
 
-The check uses the same [hold matching](#handoff-labels) as the reconciler: label names match ignoring case, and the default hold names stay holds alongside any renamed holds unless a default name is configured for another label. This preserves holds during a rename and in fork runs without the variable. GitHub does not pass configuration variables to `pull_request` runs from forks, so a renamed hold is only recognized on fork PRs if the override is written literally in the step.
+Trigger the workflow on `pull_request` with at least `opened`, `reopened`, `labeled`, `unlabeled`, and `synchronize`. Also trigger it on `merge_group` if the check is required in a merge queue. The hold check fails on any event without a pull request payload, so skip it for `merge_group` as shown; the required job still reports. Held PRs are dequeued by the reconciler, so the merge-group run can pass.
+
+The check uses the same [hold matching](#handoff-labels) as the reconciler: label names match ignoring case, and the default hold names stay holds alongside any renamed holds unless a default name is configured for another label. This preserves holds during a rename and in fork runs without the variable. GitHub does not pass configuration variables to `pull_request` runs from forks, so a renamed hold is only recognized on fork PRs if the override is written literally in the caller's `labels` input.
 
 ## Label catalog
 
@@ -180,4 +199,4 @@ Repository entries win: a shared entry is dropped when the repository catalog de
 - **No pull request code runs with write access.** The writer runs on `pull_request_target`, `workflow_run`, `schedule`, and `workflow_dispatch`, all in the base repository's context. It checks out nothing; the script and default names come from this repository at the reusable workflow's commit through `$/`, and callers reference the reusable workflow at `@main`, matching the organization's other shared workflows.
 - **The review signal is read-only and untrusted.** `PR Review Signal` has no permissions and only echoes a message. Because a fork can change its run name, the writer accepts a signal only when it comes from the configured workflow name, a review or inline-comment event, and a successful run whose run name is the PR number and whose head SHA matches the PR's current head or merge commit. Other signals are ignored and left to the schedule.
 - **Fail closed.** Paginated GraphQL and REST reads reject missing or repeated cursors, unexpected responses, and changed base or head commits. Label-name configuration errors stop the run before any write or dequeue. A failure on one PR during an all-PR run still reconciles the rest, then fails the run.
-- **Least privilege.** The writer job has `contents: read`, `issues: write`, and `pull-requests: write`. The hold check reads only the event payload. The label catalog preview parses the proposed catalog as data with a read-only token and a dry run; the sync applies only the default branch's catalog at `github.sha`. Third-party actions are pinned to full commit SHAs, and checkouts use `persist-credentials: false`.
+- **Least privilege.** The writer job has `contents: read`, `issues: write`, and `pull-requests: write`. The hold check reads only the event payload and runs with no token permissions. The label catalog preview parses the proposed catalog as data with a read-only token and a dry run; the sync applies only the default branch's catalog at `github.sha`. Third-party actions are pinned to full commit SHAs, and checkouts use `persist-credentials: false`.

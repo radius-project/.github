@@ -268,6 +268,7 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 | `__build.yml`             | Shared build workflow                         |
 | `__pr-author.yml`         | Assigns unassigned human PRs to their author  |
 | `__pr-status-labels.yml`  | Applies PR lifecycle labels                   |
+| `__pr-holds.yml`          | Fails when a PR carries a manual hold label   |
 | `__labels.yml`            | Syncs shared and repository label catalogs    |
 
 ### Workflow Relationship Diagram
