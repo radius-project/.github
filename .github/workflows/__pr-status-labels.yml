@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - ../actions/pr-status-labels/README.md
+# - https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idstepsuses
+# Metadata-only workflow: never check out or execute pull request code. The
+# caller owns the triggers and the repository-wide concurrency group.
+---
+name: __pr-status-labels
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: Pull request to reconcile on workflow_dispatch. Leave empty to reconcile every open pull request.
+        type: string
+        required: false
+        default: ""
+      labels:
+        description: Optional JSON object that overrides default label names (for example vars.PR_STATUS_LABELS).
+        type: string
+        required: false
+        default: ""
+      review-signal-workflow:
+        description: Name of the read-only review-signal workflow that triggers workflow_run events.
+        type: string
+        required: false
+        default: PR Review Signal
+
+permissions: {}
+
+jobs:
+  label:
+    if: >-
+      (github.event_name != 'schedule' || github.repository_owner == 'radius-project') &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow.name == inputs.review-signal-workflow &&
+        (github.event.workflow_run.event == 'pull_request_review' ||
+         github.event.workflow_run.event == 'pull_request_review_comment') &&
+        github.event.workflow_run.conclusion == 'success'))
+    name: Reconcile PR status labels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      # `$/` resolves to this repository at the commit of this reusable
+      # workflow, so the action and its script always match the caller's ref.
+      - name: Reconcile PR status labels
+        uses: $/.github/actions/pr-status-labels
+        with:
+          labels: ${{ inputs.labels }}
+          pr-number: ${{ inputs.pr-number }}
+          review-signal-workflow: ${{ inputs.review-signal-workflow }}

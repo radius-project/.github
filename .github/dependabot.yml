@@ -13,6 +13,7 @@ updates:
     directories:
       - "/"
       - "/workflow-templates"
+      - "/.github/actions/*"
     schedule:
       interval: weekly
     cooldown:

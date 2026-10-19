@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# ------------------------------------------------------------------------------
+# This file is synced from the radius-project/.github repository.
+# DO NOT EDIT MANUALLY - changes will be overwritten by the next sync.
+# Source: https://github.com/radius-project/.github
+# ------------------------------------------------------------------------------
+---
+name: Labels
+
+# Shared label catalogs from radius-project/.github are merged with this
+# repository's .github/labels.yml. Other existing labels are never deleted.
+on:
+  # The reusable workflow only syncs pushes to the default branch.
+  push:
+    paths:
+      - .github/labels.yml
+      - .github/workflows/labels.yml
+  pull_request:
+    paths:
+      - .github/labels.yml
+      - .github/workflows/labels.yml
+  label:
+    types: [created, edited, deleted]
+  # Picks up shared catalog changes, which do not trigger this repository.
+  schedule:
+    - cron: 41 3 * * *
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: labels-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  labels:
+    uses: radius-project/.github/.github/workflows/__labels.yml@main
+    permissions:
+      contents: read
+      issues: write

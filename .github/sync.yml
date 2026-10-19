@@ -107,6 +107,22 @@ group:
       - source: sync-templates/.github/instructions/markdown.instructions.md
         dest: .github/instructions/markdown.instructions.md
 
+  # PR status labels - lifecycle labels, the read-only review signal relay, and
+  # the shared label catalog sync. Dogfooded on .github first; add repositories
+  # here only after their own lifecycle-label workflows have been removed.
+  # Docs: .github/actions/pr-status-labels/README.md
+  - repos: |
+      radius-project/.github
+    files:
+      - source: workflow-templates/pr-status-labels.yml
+        dest: .github/workflows/pr-status-labels.yml
+
+      - source: workflow-templates/pr-review-signal.yml
+        dest: .github/workflows/pr-review-signal.yml
+
+      - source: workflow-templates/labels.yml
+        dest: .github/workflows/labels.yml
+
   # Spellcheck (cspell) config and workflow for the documentation-heavy repos.
   # Destination workflow keeps the existing `.yaml` extension so it overwrites
   # the per-repo workflow instead of creating a duplicate.
@@ -138,7 +154,7 @@ group:
         template:
           ecosystems:
             - type: github-actions
-              directories: ["/", "/workflow-templates"]
+              directories: ["/", "/workflow-templates", "/.github/actions/*"]
 
   - repos: |
       radius-project/ai-extensions

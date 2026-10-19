@@ -1,0 +1,9 @@
+{
+  "name": "PR Review Signal",
+  "description": "Read-only relay that signals PR Status Labels when a pull request review or inline comment changes, including on fork pull requests.",
+  "iconName": "octicon code-review",
+  "categories": [
+    "Automation"
+  ],
+  "filePatterns": []
+}
