@@ -108,8 +108,9 @@ group:
         dest: .github/instructions/markdown.instructions.md
 
   # PR status labels - lifecycle labels, the read-only review signal relay, and
-  # the shared label catalog sync. Dogfooded on .github first; add repositories
-  # here only after their own lifecycle-label workflows have been removed.
+  # the centrally managed .github/labels.yml with the workflow that applies it.
+  # Dogfooded on .github first; add repositories here only after their own
+  # lifecycle-label workflows have been removed.
   # Docs: .github/actions/pr-status-labels/README.md
   - repos: |
       radius-project/.github
@@ -122,6 +123,22 @@ group:
 
       - source: workflow-templates/labels.yml
         dest: .github/workflows/labels.yml
+
+      # Shared labels live in the template. Repository-specific labels are
+      # listed under repo_labels, keyed by repository name; see the template
+      # header for the label options. Example for radius once it is enrolled:
+      #   repo_labels:
+      #     radius:
+      #       - name: pr:standard
+      #         color: 86a16a
+      #         description: Ongoing maintenance, minor improvements, documentation updates, and routine development work
+      #       - name: pr:important
+      #         color: 86a16a
+      #         description: High-impact changes needing special attention during release and in release notes
+      - source: sync-templates/.github/labels.yml.njk
+        dest: .github/labels.yml
+        template:
+          repo_labels: {}
 
   # Spellcheck (cspell) config and workflow for the documentation-heavy repos.
   # Destination workflow keeps the existing `.yaml` extension so it overwrites

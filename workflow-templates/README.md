@@ -5,4 +5,4 @@
 
 ## PR status labels
 
-[`pr-status-labels.yml`](./pr-status-labels.yml), [`pr-review-signal.yml`](./pr-review-signal.yml), and [`labels.yml`](./labels.yml) work together to apply pull request lifecycle labels and sync their definitions. See the [PR Status Labels documentation](../.github/actions/pr-status-labels/README.md) for the handoff rules, configuration, opt-in steps, hold check, limitations, and trust model.
+[`pr-status-labels.yml`](./pr-status-labels.yml), [`pr-review-signal.yml`](./pr-review-signal.yml), and [`labels.yml`](./labels.yml) work together to apply pull request lifecycle labels and keep their definitions in sync. `labels.yml` applies the repository's `.github/labels.yml`, which is managed centrally in [`sync-templates/.github/labels.yml.njk`](../sync-templates/.github/labels.yml.njk) and the `repo_labels` variable in [`.github/sync.yml`](../.github/sync.yml); don't edit the synced file in the target repository. See the [PR Status Labels documentation](../.github/actions/pr-status-labels/README.md) for the handoff rules, configuration, opt-in steps, hold check, label catalog, limitations, and trust model.
