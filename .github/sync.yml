@@ -115,7 +115,8 @@ group:
   # docs syncs to edge, which is not its default branch. PRs into edge are
   # labeled right away, but the schedule, review signals and label sync run
   # only from the default branch, so they start once the next release branch
-  # is cut from edge.
+  # is cut from edge. docs' required "Check for do-not-merge tag" check is
+  # moving to the shared hold check (__pr-holds.yml) in docs.
   # Docs: .github/actions/pr-status-labels/README.md
   - repos: |
       radius-project/.github
@@ -161,15 +162,6 @@ group:
               - name: pr:standard
                 color: EDEDED
                 description: Standard pull request
-            docs:
-              # Renames the legacy hold so held PRs keep it; replaces the
-              # shared pr:do-not-merge definition. Runs only from the default
-              # branch. docs' required "Check for do-not-merge tag" check must
-              # also reject pr:do-not-merge before then.
-              - name: pr:do-not-merge
-                from_name: do-not-merge
-                color: 1D76DB
-                description: Don't merge this PR until open discussion items or issues are complete
             radius:
               - name: pr:standard
                 color: 86a16a
