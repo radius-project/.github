@@ -63,7 +63,7 @@ A human reviewer's latest submitted opinionated review also endorses existing in
 
 Submitted review evidence establishes who has participated, not whether merging is allowed. Required approvals, CODEOWNER review, and last-push approval safeguards apply to the PR's actual target branch, including stacked targets. When GitHub reports no aggregate review decision for a ruleset-protected branch, the workflow infers approval only when enough reviewers with write access approved the current head and, if the ruleset requires it, a CODEOWNER team approved, based on `.github/CODEOWNERS` at the base commit. It does not infer approval when the ruleset names specific required reviewers or requires approval of the most recent push. If approval cannot be safely established, an active submitted human review keeps the PR waiting for review rather than requesting a new reviewer; qualifying author feedback takes precedence until handed back. An outstanding changes-requested review from a human other than the author takes precedence regardless of target protection or GitHub's aggregate review decision. Like inline feedback, an outstanding change request hands the PR back when the author pushes or comments after it, or when each requesting reviewer has a later, currently pending re-request. Once the author has responded, GitHub's aggregate changes-requested decision alone does not keep the PR waiting for the author, but it still blocks the approved and queue-ready labels. If GitHub reports changes requested but no human change request can be identified, the PR stays waiting for the author. Dismissing the review or superseding it with an approval clears that review's change request; an author response or re-request only hands the turn back.
 
-The workflow also adds **`pr:needs-rebase`** when the PR has merge conflicts, and **`pr:ready-for-queue`** when review is approved, the PR is mergeable, required checks pass, and it is not already queued. A branch that is behind its base branch can still be queue-ready once its required checks pass; the merge queue handles the branch update. These labels are signals, not substitutes for GitHub's merge rules or the merge queue.
+The workflow also adds **`pr:needs-rebase`** when the PR has merge conflicts, and **`pr:ready-for-queue`** when review is approved, the PR is mergeable, required checks pass, and it is not already queued. A branch that is behind its base branch can still be queue-ready once its required checks pass; the merge queue handles the branch update. In a repository without a merge queue, the label means the PR is ready to merge, although a branch that is behind may need an update first if the target branch requires it. These labels are signals, not substitutes for GitHub's merge rules or the merge queue.
 
 The status workflow does not provision label definitions; the [label catalog](#label-catalog) sync does. Unrelated repository labels are preserved.
 
@@ -110,7 +110,7 @@ A rename takes effect on the next run and does not migrate existing labels. To r
 2. Set `PR_STATUS_LABELS` after the sync pull request merges and the renamed labels exist.
 3. If you rename a manual hold label, also pass the override literally to the [hold check](#hold-check), because configuration variables are not available to fork `pull_request` runs.
 
-Release-impact labels and review or merge policy are not configured here.
+Release-impact labels and review or merge policy are not configured here. The release-impact check that requires `pr:standard` or `pr:important` (`PR Required Labels` in `radius-project/radius`) is Radius-only and is not part of this package; other repositories that list those labels in `repo_labels` only get their definitions.
 
 ### Other settings
 
@@ -120,8 +120,10 @@ Release-impact labels and review or merge policy are not configured here.
 
 ## Opting a repository in
 
+The PR status labels group in [`.github/sync.yml`](../../sync.yml) enrolls `radius-project/.github`, `ai-extensions`, `dashboard`, `docs` (synced to `edge`; see [Limitations](#limitations)), `lab`, `radius`, `recipes`, `resource-types-contrib`, and `website`. To enroll another repository:
+
 1. Remove any repository-local lifecycle-label workflows, scripts, and configuration so only one writer updates the labels.
-2. Add the repository to the PR status labels group in [`.github/sync.yml`](../../sync.yml), and add any repository-specific labels, including those in an existing `.github/labels.yml`, to that group's `repo_labels` (see [Label catalog](#label-catalog)). After the change merges, the Sync workflow opens a pull request in the target repository that adds:
+2. Add the repository to the PR status labels group in [`.github/sync.yml`](../../sync.yml), and add any repository-specific labels, including those in an existing `.github/labels.yml` and any existing `pr:` labels, to that group's `repo_labels` (see [Label catalog](#label-catalog)). After the change merges, the Sync workflow opens a pull request in the target repository that adds:
    - `.github/workflows/pr-status-labels.yml` (`PR Status Labels`)
    - `.github/workflows/pr-review-signal.yml` (`PR Review Signal`)
    - `.github/workflows/labels.yml` (`Labels`)
@@ -170,7 +172,7 @@ jobs:
 
 The required status check stays the calling repository's own job (`<required-job>`), so its context name and the ruleset do not change. That job fails whenever the hold check fails or is skipped. The gate step's `if` has no status function, so GitHub adds an implicit `success()`; if the whole workflow run is cancelled, that step is skipped rather than failing, but a cancelled run is never reported as success. The hold check also reports its own `merge-holds / Check merge holds` context, which does not need to be required.
 
-Use the reusable workflow rather than calling the action as a step. When a repository requires actions to be pinned to a full-length commit SHA (the Actions setting `sha_pinning_required`, enabled on `radius-project/radius` and `radius-project/.github`), a step-level reference to this repository's action must use a full commit SHA. Reusable workflows may still be referenced at `@main`, and the `$/` reference inside `__pr-holds.yml` resolves to the same commit, so the reusable workflow is the supported path.
+Use the reusable workflow rather than calling the action as a step. When a repository requires actions to be pinned to a full-length commit SHA (the Actions setting `sha_pinning_required`, enabled on every enrolled repository), a step-level reference to this repository's action must use a full commit SHA. Reusable workflows may still be referenced at `@main`, and the `$/` reference inside `__pr-holds.yml` resolves to the same commit, so the reusable workflow is the supported path.
 
 Trigger the workflow on `pull_request` with at least `opened`, `reopened`, `labeled`, `unlabeled`, and `synchronize`. Also trigger it on `merge_group` if the check is required in a merge queue. The hold check fails on any event without a pull request payload, so skip it for `merge_group` as shown; the required job still reports. Held PRs are dequeued by the reconciler, so the merge-group run can pass.
 
@@ -204,6 +206,7 @@ The `Labels` workflow applies `.github/labels.yml` with [crazy-max/ghaction-gith
 - **Fork hold checks.** Configuration variables are not passed to fork `pull_request` runs; see [Hold check](#hold-check).
 - **Approval inference.** For ruleset-protected branches without an aggregate review decision, CODEOWNER approval is only inferred from `.github/CODEOWNERS` on the base branch.
 - **Size limits.** A PR with more than 100 labels or more than 100 pending review requests fails reconciliation rather than being classified from partial data.
+- **Non-default sync branch.** `radius-project/docs` is synced to `edge`, but its default branch is a release branch cut from `edge`. `pull_request_target` runs use the base branch's workflow, so PRs into `edge` are labeled as soon as the sync pull request merges. Scheduled reconciliation, `workflow_run` review signals, manual runs, and the `Labels` sync run only from the default branch, so they start once the next release branch is cut from `edge`. Until then, PRs into other branches are not labeled, lifecycle labels that the reconciler adds lack the shared colors and descriptions, and the legacy `do-not-merge` label is not yet renamed to `pr:do-not-merge`, so the reconciler does not treat it as a hold. The docs `PR Checks` workflow's required `Check for do-not-merge tag` job matches `do-not-merge` by name; update it to also reject `pr:do-not-merge` before that release branch is cut, or the rename stops it from blocking held PRs.
 - **Platform.** The reusable workflows load their actions with the `$/` self-repository syntax, which requires GitHub.com (not GitHub Enterprise Server) and runner 2.336.0 or newer. actionlint 1.7.12 does not recognize `$/` yet ([rhysd/actionlint#711](https://github.com/rhysd/actionlint/issues/711)).
 
 ## Trust model

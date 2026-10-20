@@ -109,12 +109,24 @@ group:
 
   # PR status labels - lifecycle labels, the read-only review signal relay, and
   # the centrally managed .github/labels.yml with the workflow that applies it.
-  # Enrolled: .github and radius. Add repositories here only after their own
-  # lifecycle-label workflows have been removed.
+  # Enrolled: .github, ai-extensions, dashboard, docs (edge), lab, radius,
+  # recipes, resource-types-contrib and website. Add repositories here only
+  # after their own lifecycle-label workflows have been removed.
+  # docs syncs to edge, which is not its default branch. PRs into edge are
+  # labeled right away, but the schedule, review signals and label sync run
+  # only from the default branch, so they start once the next release branch
+  # is cut from edge.
   # Docs: .github/actions/pr-status-labels/README.md
   - repos: |
       radius-project/.github
+      radius-project/ai-extensions
+      radius-project/dashboard
+      radius-project/docs@edge
+      radius-project/lab
       radius-project/radius
+      radius-project/recipes
+      radius-project/resource-types-contrib
+      radius-project/website
     files:
       - source: workflow-templates/pr-status-labels.yml
         dest: .github/workflows/pr-status-labels.yml
@@ -127,15 +139,47 @@ group:
 
       # Shared labels live in the template. To add repository-specific labels,
       # list them under repo_labels, keyed by repository name (without the
-      # owner); see the template header for the label options.
+      # owner); see the template header for the label options. List an
+      # enrolling repository's existing pr: labels exactly as they are, so the
+      # sync does not change them.
       - source: sync-templates/.github/labels.yml.njk
         dest: .github/labels.yml
         template:
           repo_labels:
+            ai-extensions:
+              - name: pr:standard
+                color: 0366d6
+                description: Standard pull request
+              - name: pr:important
+                color: 4a08c1
+              - name: pr:no-changeset
+                color: 0052cc
+              - name: pr:update-visual-baselines
+                color: 1D76DB
+                description: Regenerate and commit Canvas visual baselines for this pull request
+            dashboard:
+              - name: pr:standard
+                color: EDEDED
+                description: Standard pull request
+            docs:
+              # Renames the legacy hold so held PRs keep it; replaces the
+              # shared pr:do-not-merge definition. Runs only from the default
+              # branch. docs' required "Check for do-not-merge tag" check must
+              # also reject pr:do-not-merge before then.
+              - name: pr:do-not-merge
+                from_name: do-not-merge
+                color: 1D76DB
+                description: Don't merge this PR until open discussion items or issues are complete
             radius:
               - name: pr:standard
                 color: 86a16a
                 description: Ongoing maintenance, minor improvements, documentation updates, and routine development work
+              - name: pr:important
+                color: 86a16a
+                description: High-impact changes needing special attention during release and in release notes
+            resource-types-contrib:
+              - name: pr:standard
+                color: ededed
               - name: pr:important
                 color: 86a16a
                 description: High-impact changes needing special attention during release and in release notes
