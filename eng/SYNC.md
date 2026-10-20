@@ -31,6 +31,7 @@ This document describes the centralized file synchronization used across the `ra
   - [Signed Release Upmerge](#signed-release-upmerge)
   - [Release Backports](#release-backports)
   - [Lockfile Registry Policy](#lockfile-registry-policy)
+  - [Security Insights Validation](#security-insights-validation)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -273,6 +274,7 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 | `__pr-holds.yml`          | Fails when a PR carries a manual hold label   |
 | `__labels.yml`            | Applies a repository's synced labels file     |
 | `__upmerge.yml`           | Creates signed release-to-edge net-diff PRs    |
+| `__validate-security-insights.yml` | Validates a repository's Security Insights manifest |
 
 ### Workflow Relationship Diagram
 
@@ -395,6 +397,12 @@ Run `node --test .github/actions/*/*.test.mjs` in this repository with Node.js, 
 The lockfile registry policy group in [`.github/sync.yml`](../.github/sync.yml) enrolls **all currently unarchived organization repositories**. The existing [Sync workflow](../.github/workflows/sync.yml) distributes [the thin caller](../workflow-templates/lockfile-registry-policy.yml) through its normal pull requests and `repo-sync` branch prefix; no separate sync workflow is needed. `docs` and `samples` retain their `edge` targets, while other repositories use their default branches. Other shared-file groups are unchanged.
 
 Merge the shared implementation first, then merge the generated downstream sync PRs to activate checks. The Files Sync App must have access to every listed repository, including private and internal repositories, and permission to update workflow files. Maintain the group's repository list as repositories are added or archived. See the action documentation for package-manager coverage, override precedence, binary-file behavior, and the limits of checking committed source references without restoring dependencies.
+
+### Security Insights Validation
+
+Security Insights validation is maintained in [the reusable workflow](../.github/workflows/__validate-security-insights.yml) and exposed through [a thin caller template](../workflow-templates/validate-security-insights.yml). It validates the repository's `security-insights.yml` against the pinned [OpenSSF Security Insights](https://github.com/ossf/security-insights) schema. When the manifest declares `header.project-si-source`, the workflow requires it to be this repository's [project-level manifest](../security-insights.yml) and validates that manifest too.
+
+The dedicated Security Insights group in `.github/sync.yml` enrolls only repositories that publish a `security-insights.yml` manifest, currently `radius-project/.github` and `radius-project/radius`. The workflow fails when the manifest is missing, so add a repository to that group only when it publishes one.
 
 ---
 
