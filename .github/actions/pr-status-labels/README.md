@@ -22,8 +22,8 @@ The logic lives once in this repository. Other repositories in the organization 
 | [`.github/workflows/__pr-holds.yml`](../../workflows/__pr-holds.yml) | Reusable workflow that runs the [hold check](#hold-check) with no token permissions. Loads the action with `$/` at the same commit. |
 | [`workflow-templates/pr-status-labels.yml`](../../../workflow-templates/pr-status-labels.yml) | Caller (`PR Status Labels`) with the triggers and the repository-wide concurrency group. |
 | [`workflow-templates/pr-review-signal.yml`](../../../workflow-templates/pr-review-signal.yml) | Read-only relay (`PR Review Signal`) for review and inline-comment events. |
-| [`labels/pr-status.yml`](../../../labels/pr-status.yml) | Shared definitions (colors and descriptions) of the lifecycle and hold labels. |
-| [`.github/actions/labels/`](../labels/action.yml), [`.github/workflows/__labels.yml`](../../workflows/__labels.yml), [`workflow-templates/labels.yml`](../../../workflow-templates/labels.yml) | Label catalog sync that merges shared catalogs with a repository's own `.github/labels.yml` without deleting labels. |
+| [`sync-templates/.github/labels.yml.njk`](../../../sync-templates/.github/labels.yml.njk) | Central definitions (colors and descriptions) of the lifecycle and hold labels, synced with any repository-specific labels to each enrolled repository's `.github/labels.yml`. See [Label catalog](#label-catalog). |
+| [`.github/workflows/__labels.yml`](../../workflows/__labels.yml), [`workflow-templates/labels.yml`](../../../workflow-templates/labels.yml) | Label sync (`Labels`) that applies the synced `.github/labels.yml` without deleting other labels. |
 
 ### Action interface
 
@@ -106,8 +106,8 @@ The merged mapping is validated before any label is written or any pull request 
 
 A rename takes effect on the next run and does not migrate existing labels. To rename safely:
 
-1. Add a repository-local definition for each new name to `.github/labels.yml`, with `from_name: <old-name>` so the [label catalog](#label-catalog) sync renames the existing label and keeps its assignments. Shared catalog entries always use the default names, so without repository-local definitions the renamed labels have no color or description, and the default-named labels are recreated.
-2. Set `PR_STATUS_LABELS` when the renamed labels exist.
+1. Define each new name centrally in the repository's `repo_labels` entry in [`.github/sync.yml`](../../sync.yml), with `from_name: <old-name>`, so the [label catalog](#label-catalog) sync renames the existing label and keeps its assignments. A repository label whose `name` or `from_name` matches a shared label replaces it. Without these definitions, the renamed labels have no color or description, and the default-named labels are recreated.
+2. Set `PR_STATUS_LABELS` after the sync pull request merges and the renamed labels exist.
 3. If you rename a manual hold label, also pass the override literally to the [hold check](#hold-check), because configuration variables are not available to fork `pull_request` runs.
 
 Release-impact labels and review or merge policy are not configured here.
@@ -121,17 +121,17 @@ Release-impact labels and review or merge policy are not configured here.
 ## Opting a repository in
 
 1. Remove any repository-local lifecycle-label workflows, scripts, and configuration so only one writer updates the labels.
-2. Add the repository to the PR status labels group in [`.github/sync.yml`](../../sync.yml). After the change merges, the Sync workflow opens a pull request in the target repository that adds:
+2. Add the repository to the PR status labels group in [`.github/sync.yml`](../../sync.yml), and add any repository-specific labels, including those in an existing `.github/labels.yml`, to that group's `repo_labels` (see [Label catalog](#label-catalog)). After the change merges, the Sync workflow opens a pull request in the target repository that adds:
    - `.github/workflows/pr-status-labels.yml` (`PR Status Labels`)
    - `.github/workflows/pr-review-signal.yml` (`PR Review Signal`)
    - `.github/workflows/labels.yml` (`Labels`)
+   - `.github/labels.yml`, which replaces any existing file
 
-   Repositories outside the sync can copy the same templates from the organization's workflow templates in the GitHub Actions UI.
-3. Keep any repository-specific labels in the repository's `.github/labels.yml`. The `Labels` workflow merges them with the shared catalog.
-4. Merge the sync pull request. The `Labels` workflow runs on push to the default branch and creates the shared labels. Run `PR Status Labels` manually without a PR number to label existing open pull requests, or wait for the schedule.
-5. Optionally set `PR_STATUS_LABELS` (see [Configuration](#configuration)).
-6. Optionally add the [hold check](#hold-check) to a required status check.
-7. Make sure the repository's Actions policy allows `pull_request_target` workflows, or fork PR labeling does not start.
+   Repositories outside the sync can copy the workflow templates from the organization's workflow templates in the GitHub Actions UI, but must then maintain their own `.github/labels.yml`.
+3. Merge the sync pull request. The `Labels` workflow runs on push to the default branch and creates the shared labels. Run `PR Status Labels` manually without a PR number to label existing open pull requests, or wait for the schedule.
+4. Optionally set `PR_STATUS_LABELS` (see [Configuration](#configuration)).
+5. Optionally add the [hold check](#hold-check) to a required status check.
+6. Make sure the repository's Actions policy allows `pull_request_target` workflows, or fork PR labeling does not start.
 
 ## Hold check
 
@@ -178,12 +178,24 @@ The check uses the same [hold matching](#handoff-labels) as the reconciler: labe
 
 ## Label catalog
 
-The `Labels` workflow syncs label definitions with [crazy-max/ghaction-github-labeler](https://github.com/crazy-max/ghaction-github-labeler) using `skip-delete`, so labels missing from the catalogs are never deleted. It merges:
+Labels are managed only in this repository. [`sync-templates/.github/labels.yml.njk`](../../../sync-templates/.github/labels.yml.njk) defines the shared labels for every enrolled repository, and the `repo_labels` template variable in [`.github/sync.yml`](../../sync.yml) adds repository-specific labels, keyed by repository name:
 
-- The shared catalogs named by the `catalogs` input (default `pr-status`, from [`labels/`](../../../labels/)).
-- The repository's own `.github/labels.yml` (`yaml-file` input), if it exists.
+```yaml
+- source: sync-templates/.github/labels.yml.njk
+  dest: .github/labels.yml
+  template:
+    repo_labels:
+      radius:
+        - name: pr:standard
+          color: 86a16a
+          description: Ongoing maintenance, minor improvements, documentation updates, and routine development work
+```
 
-Repository entries win: a shared entry is dropped when the repository catalog defines the same name or uses it as `from_name`, ignoring case. The merged catalog must not define a label twice. On pull requests that change the catalog, the workflow previews changes as a dry run. It syncs on push to the default branch, after a repository label changes, daily to pick up shared catalog changes, and on manual dispatch from the default branch.
+The Sync workflow renders both into each enrolled repository's `.github/labels.yml`, so shared and repository-specific changes arrive as sync pull requests. Don't edit a synced `.github/labels.yml`; the next sync overwrites it. Change the template or `repo_labels` instead.
+
+Each label needs a `name` and a `color` (hex, without `#`). Quote colors that YAML reads as numbers, such as `"000000"`. A label can also set a `description` (empty by default) and a `from_name` to rename an existing label and keep its assignments. Names must be unique, ignoring case. A repository label whose `name` or `from_name` matches a shared label, ignoring case, replaces the shared label.
+
+The `Labels` workflow applies `.github/labels.yml` with [crazy-max/ghaction-github-labeler](https://github.com/crazy-max/ghaction-github-labeler) using `skip-delete`, so labels the file does not list are never deleted. On pull requests that change the file, it previews changes as a dry run. It applies the file on push to the default branch, on manual dispatch from the default branch, and after a repository label is created, edited, or deleted, which reverts manual changes to the labels the file defines.
 
 ## Limitations
 
@@ -199,4 +211,4 @@ Repository entries win: a shared entry is dropped when the repository catalog de
 - **No pull request code runs with write access.** The writer runs on `pull_request_target`, `workflow_run`, `schedule`, and `workflow_dispatch`, all in the base repository's context. It checks out nothing; the script and default names come from this repository at the reusable workflow's commit through `$/`, and callers reference the reusable workflow at `@main`, matching the organization's other shared workflows.
 - **The review signal is read-only and untrusted.** `PR Review Signal` has no permissions and only echoes a message. Because a fork can change its run name, the writer accepts a signal only when it comes from the configured workflow name, a review or inline-comment event, and a successful run whose run name is the PR number and whose head SHA matches the PR's current head or merge commit. Other signals are ignored and left to the schedule.
 - **Fail closed.** Paginated GraphQL and REST reads reject missing or repeated cursors, unexpected responses, and changed base or head commits. Label-name configuration errors stop the run before any write or dequeue. A failure on one PR during an all-PR run still reconciles the rest, then fails the run.
-- **Least privilege.** The writer job has `contents: read`, `issues: write`, and `pull-requests: write`. The hold check reads only the event payload and runs with no token permissions. The label catalog preview parses the proposed catalog as data with a read-only token and a dry run; the sync applies only the default branch's catalog at `github.sha`. Third-party actions are pinned to full commit SHAs, and checkouts use `persist-credentials: false`.
+- **Least privilege.** The writer job has `contents: read`, `issues: write`, and `pull-requests: write`. The hold check reads only the event payload and runs with no token permissions. The `Labels` preview parses the proposed `.github/labels.yml` as data with a read-only token and a dry run; the apply job uses only the default branch's file at `github.sha`. Third-party actions are pinned to full commit SHAs, and checkouts use `persist-credentials: false`.

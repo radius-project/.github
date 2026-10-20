@@ -1,0 +1,99 @@
+{#-
+  Repository label definitions template.
+
+  Synced from radius-project/.github via raven-actions/repo-files-sync to
+  .github/labels.yml. The Labels workflow (workflow-templates/labels.yml, which
+  calls .github/workflows/__labels.yml) applies it with
+  crazy-max/ghaction-github-labeler and skip-delete, so labels that are not
+  listed are kept. Repositories must not edit the synced file.
+
+  Every repository gets the shared labels below. Declare repository-specific
+  labels in .github/sync.yml with the `repo_labels` template variable, a map
+  keyed by repository name. Example:
+
+    - source: sync-templates/.github/labels.yml.njk
+      dest: .github/labels.yml
+      template:
+        repo_labels:
+          radius:
+            - name: pr:standard
+              color: 86a16a
+              description: Ongoing maintenance, minor improvements, ...
+
+  Per-label options:
+    name         (required)  Label name, unique per repository ignoring case.
+    color        (required)  Hex color without "#". Quote colors that YAML
+                             reads as numbers, such as "000000".
+    description  (optional)  Up to 100 characters. Defaults to "".
+    from_name    (optional)  Existing label to rename to `name`, keeping its
+                             assignments.
+
+  A repository label whose name or from_name matches a shared label name,
+  ignoring case, replaces that shared label. Use this to define labels renamed
+  through the PR_STATUS_LABELS variable.
+-#}
+{#- Quotes a value as a YAML scalar the way Prettier formats it: JSON double
+    quotes, or single quotes when the value contains a double quote and needs
+    no other escapes. -#}
+{%- macro yaml_string(value) -%}
+  {%- set text = value | string -%}
+  {%- set json = text | dump -%}
+  {%- if '"' in text and not ("\\" in (json | replace('\\"', ""))) -%}
+    '{{ text | replace("'", "''") | safe }}'
+  {%- else -%}
+    {{ json | safe }}
+  {%- endif -%}
+{%- endmacro -%}
+{#- PR lifecycle and manual hold labels. Names match the defaults in
+    .github/actions/pr-status-labels/labels.json. -#}
+{%- set shared_labels = [
+  { "name": "pr:needs-reviewer", "color": "1D76DB", "description": "No pending review request or active submitted human review" },
+  { "name": "pr:waiting-for-review", "color": "1D76DB", "description": "A reviewer owns the next action; required approval is pending or unverifiable" },
+  { "name": "pr:waiting-for-author", "color": "1D76DB", "description": "The author needs to address human review feedback or human-endorsed inline feedback" },
+  { "name": "pr:review-approved", "color": "1D76DB", "description": "Required reviews are approved; checks may still be pending" },
+  { "name": "pr:needs-rebase", "color": "1D76DB", "description": "The pull request has merge conflicts" },
+  { "name": "pr:ready-for-queue", "color": "1D76DB", "description": "Review, checks and mergeability permit adding this PR to the queue" },
+  { "name": "pr:needs-author-response", "color": "1D76DB", "description": "A reviewer manually requested an author response" },
+  { "name": "pr:do-not-merge", "color": "1D76DB", "description": "Don't merge this PR until open discussion items or issues are complete" }
+] -%}
+{%- set repo_specific = repo_labels[repo.name] or [] -%}
+{#- Shared labels replaced by a repository label (by name or from_name). -#}
+{%- set replaced = [] -%}
+{%- for label in repo_specific -%}
+  {%- set _ = replaced.push(label.name | string | lower) -%}
+  {%- if label.from_name -%}
+    {%- set _ = replaced.push(label.from_name | string | lower) -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- set labels = [] -%}
+{%- for label in shared_labels -%}
+  {%- if not ((label.name | lower) in replaced) -%}
+    {%- set _ = labels.push(label) -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- set shared_count = labels | length -%}
+{%- for label in repo_specific -%}
+  {%- set _ = labels.push(label) -%}
+{%- endfor -%}
+# ------------------------------------------------------------------------------
+# This file is synced from the radius-project/.github repository.
+# DO NOT EDIT MANUALLY - changes will be overwritten by the next sync.
+# Source: https://github.com/radius-project/.github
+# ------------------------------------------------------------------------------
+# Labels applied by .github/workflows/labels.yml. Labels not listed here are
+# kept. Shared labels are defined in sync-templates/.github/labels.yml.njk and
+# repository-specific labels in the repo_labels variable in .github/sync.yml.
+# yamllint disable rule:quoted-strings
+---
+# Shared labels.
+{% for label in labels %}
+{% if loop.index0 == shared_count %}
+# Repository-specific labels.
+{% endif %}
+- name: {{ yaml_string(label.name) }}
+{% if label.from_name %}
+  from_name: {{ yaml_string(label.from_name) }}
+{% endif %}
+  color: {{ yaml_string(label.color) }}
+  description: {{ yaml_string(label.description or "") }}
+{% endfor %}

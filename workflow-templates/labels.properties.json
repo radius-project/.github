@@ -1,6 +1,6 @@
 {
   "name": "Labels",
-  "description": "Sync the organization's shared label catalogs merged with this repository's .github/labels.yml, without deleting other labels.",
+  "description": "Apply the centrally managed .github/labels.yml synced from radius-project/.github, without deleting other labels.",
   "iconName": "octicon tag",
   "categories": [
     "Automation"
