@@ -168,7 +168,7 @@ jobs:
       # The required job's other steps follow.
 ```
 
-The required status check stays the calling repository's own job (`<required-job>`), so its context name and the ruleset do not change. That job fails whenever the hold check fails, is skipped, or is cancelled. The hold check also reports its own `merge-holds / Check merge holds` context, which does not need to be required.
+The required status check stays the calling repository's own job (`<required-job>`), so its context name and the ruleset do not change. That job fails whenever the hold check fails or is skipped. The gate step's `if` has no status function, so GitHub adds an implicit `success()`; if the whole workflow run is cancelled, that step is skipped rather than failing, but a cancelled run is never reported as success. The hold check also reports its own `merge-holds / Check merge holds` context, which does not need to be required.
 
 Use the reusable workflow rather than calling the action as a step. When a repository requires actions to be pinned to a full-length commit SHA (the Actions setting `sha_pinning_required`, enabled on `radius-project/radius` and `radius-project/.github`), a step-level reference to this repository's action must use a full commit SHA. Reusable workflows may still be referenced at `@main`, and the `$/` reference inside `__pr-holds.yml` resolves to the same commit, so the reusable workflow is the supported path.
 

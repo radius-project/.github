@@ -317,7 +317,7 @@ To expand the rollout later, add approved repository names to the dedicated PR-a
 
 PR lifecycle labeling is maintained in [the PR Status Labels action](../.github/actions/pr-status-labels/README.md) and [its reusable workflow](../.github/workflows/__pr-status-labels.yml), which loads the action from the same commit with the `$/` self-repository syntax. Three thin caller templates are synced together: [`pr-status-labels.yml`](../workflow-templates/pr-status-labels.yml), the read-only [`pr-review-signal.yml`](../workflow-templates/pr-review-signal.yml) relay, and [`labels.yml`](../workflow-templates/labels.yml), which applies the repository's centrally managed `.github/labels.yml` (see [Labels](#labels)).
 
-The dedicated PR status labels group in `.github/sync.yml` initially enrolls **only `radius-project/.github`**. Add a repository to that group only after its own lifecycle-label workflows are removed, so only one writer updates its labels. See [Opting a repository in](../.github/actions/pr-status-labels/README.md#opting-a-repository-in).
+The dedicated PR status labels group in `.github/sync.yml` enrolls **`radius-project/.github` and `radius-project/radius`**. Add a repository to that group only after its own lifecycle-label workflows are removed, so only one writer updates its labels. See [Opting a repository in](../.github/actions/pr-status-labels/README.md#opting-a-repository-in).
 
 ### Labels
 
