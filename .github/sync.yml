@@ -65,6 +65,9 @@ group:
       - source: workflow-templates/dependabot-manager.yml
         dest: .github/workflows/dependabot-manager.yml
 
+      - source: workflow-templates/dependabot-failures.yml
+        dest: .github/workflows/dependabot-failures.yml
+
       - source: workflow-templates/issue-metrics.yml
         dest: .github/workflows/issue-metrics.yml
 

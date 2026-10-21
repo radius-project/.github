@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
+# docs: ./README.md
+---
+name: Dependabot Failures
+description: Keep one open issue listing the Dependabot updates whose latest run failed.
+author: radius-project
+
+inputs:
+  label:
+    description: Label used to find and tag the issue. Created if the repository does not have it.
+    required: false
+    default: test-failure
+  lookback-days:
+    description: How many days of Dependabot runs to check. Dependabot version updates run weekly, so keep this above 7.
+    required: false
+    default: "8"
+  dry-run:
+    description: When `true`, log the issue that would be written and change nothing.
+    required: false
+    default: "false"
+  github-token:
+    description: Token used for GitHub API calls. Needs `actions:read` and `issues:write`.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  action:
+    description: What the run did to the issue, one of `none`, `create`, `update`, or `update-and-comment`.
+    value: ${{ steps.run.outputs.action }}
+  issue:
+    description: Number of the issue that was created or updated. Empty when there was none.
+    value: ${{ steps.run.outputs.issue }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check Dependabot runs
+      id: run
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        DEPENDABOT_FAILURES_ACTION_PATH: ${{ github.action_path }}
+        DEPENDABOT_FAILURES_LABEL: ${{ inputs.label }}
+        DEPENDABOT_FAILURES_LOOKBACK_DAYS: ${{ inputs.lookback-days }}
+        DEPENDABOT_FAILURES_DRY_RUN: ${{ inputs.dry-run }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const { default: run } = await import(
+            `${process.env.DEPENDABOT_FAILURES_ACTION_PATH}/dependabot-failures.mjs`
+          )
+          // GITHUB_WORKFLOW_REF is owner/repo/.github/workflows/file.yml@ref of the caller.
+          const workflowFile = (process.env.GITHUB_WORKFLOW_REF ?? '')
+            .split('@')[0]
+            .split('/')
+            .pop()
+          const result = await run({ github, context, core }, {
+            label: process.env.DEPENDABOT_FAILURES_LABEL,
+            lookbackDays: process.env.DEPENDABOT_FAILURES_LOOKBACK_DAYS,
+            dryRun: process.env.DEPENDABOT_FAILURES_DRY_RUN,
+            workflowUrl: workflowFile
+              ? `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/workflows/${workflowFile}`
+              : ''
+          })
+          core.setOutput('action', result.action)
+          core.setOutput('issue', result.issue ?? '')

@@ -1,0 +1,9 @@
+{
+  "name": "Dependabot Failures",
+  "description": "Open and keep updated one issue listing the Dependabot updates whose latest run failed, using the organization reusable workflow.",
+  "iconName": "package-dependencies",
+  "categories": [
+    "dependency-management"
+  ],
+  "filePatterns": []
+}
