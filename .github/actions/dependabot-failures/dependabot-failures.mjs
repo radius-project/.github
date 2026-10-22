@@ -32,14 +32,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // updates and "npm_and_yarn in /docs for vite - Update #123" for security
 // updates. Grouped security updates list every dependency, and the order of
 // directories and dependencies changes between runs, so they are normalized.
-// Returns { key, name } where key identifies the update across runs.
+// Returns { key, name, base, deps } where key identifies the update across
+// runs and base is the ecosystem and directories.
 export function parseTitle(title) {
   const text = String(title ?? "")
     .replace(/\s+-\s+Update\s+#\d+\s*$/u, "")
     .trim();
   const match = text.match(/^(\S+) in (.+?)(?: for (.+))?$/u);
   if (!match) {
-    return { key: text, name: text };
+    return { key: text, name: text, base: text, deps: [] };
   }
   const [, ecosystem, dirList, depList] = match;
   const split = (list) => [...new Set(list.split(",").map((s) => s.trim()).filter(Boolean))];
@@ -47,14 +48,15 @@ export function parseTitle(title) {
   const deps = depList ? split(depList).sort() : [];
   const base = `${ecosystem} in ${dirs.join(", ")}`;
   if (deps.length === 0) {
-    return { key: base, name: base };
+    return { key: base, name: base, base, deps };
   }
   if (deps.length === 1) {
-    return { key: `${base} for ${deps[0]}`, name: `${base} for ${deps[0]}` };
+    const name = `${base} for ${deps[0]}`;
+    return { key: name, name, base, deps };
   }
   const shown = deps.slice(0, 8).join(", ");
   const more = deps.length > 8 ? ` and ${deps.length - 8} more` : "";
-  return { key: `${base} for multiple dependencies`, name: `${base} for ${shown}${more}` };
+  return { key: `${base} for multiple dependencies`, name: `${base} for ${shown}${more}`, base, deps };
 }
 
 // The updater prints the errors as a table at the end of a failed job, either
@@ -124,15 +126,21 @@ export function parseErrors(log) {
 }
 
 // Keeps the latest run per update and returns the updates whose latest run
-// failed, newest first.
+// failed, newest first. A single-dependency failure is also cleared by a later
+// successful grouped run in the same ecosystem and directories that includes
+// that dependency.
 export function failingUpdates(runs) {
   const byKey = new Map();
+  const groupSuccesses = [];
   for (const run of runs) {
-    const { key, name } = parseTitle(run.display_title);
+    const { key, name, base, deps } = parseTitle(run.display_title);
     if (!key) {
       continue;
     }
-    const entry = byKey.get(key) ?? { key, name, latest: null, failures: 0 };
+    if (run.conclusion === "success" && deps.length > 1) {
+      groupSuccesses.push({ base, deps, created_at: run.created_at });
+    }
+    const entry = byKey.get(key) ?? { key, name, base, deps, latest: null, failures: 0 };
     if (FAILED.has(run.conclusion)) {
       entry.failures += 1;
     }
@@ -142,8 +150,16 @@ export function failingUpdates(runs) {
     }
     byKey.set(key, entry);
   }
+  const clearedByGroup = (entry) =>
+    entry.deps.length === 1 &&
+    groupSuccesses.some(
+      (g) =>
+        g.base === entry.base &&
+        g.deps.includes(entry.deps[0]) &&
+        new Date(g.created_at) > new Date(entry.latest.created_at)
+    );
   return [...byKey.values()]
-    .filter((entry) => FAILED.has(entry.latest.conclusion))
+    .filter((entry) => FAILED.has(entry.latest.conclusion) && !clearedByGroup(entry))
     .sort((a, b) => new Date(b.latest.created_at) - new Date(a.latest.created_at));
 }
 
@@ -318,7 +334,7 @@ export default async function run({ github, context, core }, options = {}) {
   const label = String(options.label || "test-failure").trim();
   const lookbackDays = Number(options.lookbackDays || 8);
   const maxLogs = Number(options.maxLogs ?? 30);
-  const dryRun = String(options.dryRun) === "true";
+  const dryRun = options.dryRun === true || String(options.dryRun) === "true";
   const now = options.now ? new Date(options.now) : new Date();
 
   if (!Number.isInteger(lookbackDays) || lookbackDays < 1 || lookbackDays > 90) {
@@ -409,9 +425,8 @@ export default async function run({ github, context, core }, options = {}) {
   }
 
   if (openIssue) {
-    if (openIssue.body !== body) {
-      await github.rest.issues.update({ owner, repo, issue_number: openIssue.number, body });
-    }
+    // Comment before saving the new state in the body. If the comment fails,
+    // the run fails and the next run still sees the update as new and retries.
     if (comment) {
       await github.rest.issues.createComment({
         owner,
@@ -419,6 +434,9 @@ export default async function run({ github, context, core }, options = {}) {
         issue_number: openIssue.number,
         body: comment
       });
+    }
+    if (openIssue.body !== body) {
+      await github.rest.issues.update({ owner, repo, issue_number: openIssue.number, body });
     }
     core.info(`Updated ${openIssue.html_url}`);
   }
