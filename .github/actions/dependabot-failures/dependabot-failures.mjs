@@ -58,18 +58,27 @@ export function parseTitle(title) {
 }
 
 // The updater prints the errors as a table at the end of a failed job, either
-//   | Type                                 | Details |
-//   | security_update_dependency_not_found | {}      |
+//   | Type                         | Details                          |
+//   | security_update_not_possible | {                                |
+//   |                              |   "dependency-name": "vite",     |
 // or, when single dependencies failed,
 //   | Dependency | Error Type                            | Error Details |
 //   | morgan     | private_source_authentication_failure | {...}         |
+// The Details JSON spans continuation rows with an empty type, so those rows
+// belong to the last row that had one.
 // Returns [{ type, dependencies }] in the order the types first appear.
 export function parseErrors(log) {
   const errors = new Map();
   const pipes = (line) => [...line.matchAll(/\|/gu)].map((m) => m.index);
+  const addDependency = (entry, name) => {
+    if (name && !entry.dependencies.includes(name)) {
+      entry.dependencies.push(name);
+    }
+  };
   let typeCol = -1;
   let depCol = -1;
   let headerPipes = [];
+  let current = null;
   for (const raw of String(log ?? "").split(/\r?\n/u)) {
     const line = raw
       .replace(/\u001b\[[0-9;]*m/gu, "")
@@ -77,6 +86,7 @@ export function parseErrors(log) {
       .trim();
     if (!line.startsWith("|") && !line.startsWith("+")) {
       typeCol = -1;
+      current = null;
       continue;
     }
     if (!line.startsWith("|") || !line.endsWith("|")) {
@@ -88,6 +98,7 @@ export function parseErrors(log) {
       typeCol = header;
       depCol = cells.indexOf("Dependency");
       headerPipes = pipes(line).slice(0, header + 2);
+      current = null;
       continue;
     }
     // Lines from other log streams can be spliced into the table, so only
@@ -97,15 +108,17 @@ export function parseErrors(log) {
       continue;
     }
     const type = cells[typeCol];
-    if (!/^[a-z][a-z0-9_]*$/u.test(type ?? "")) {
+    if (/^[a-z][a-z0-9_]*$/u.test(type ?? "")) {
+      current = errors.get(type) ?? { type, dependencies: [] };
+      errors.set(type, current);
+      addDependency(current, depCol >= 0 ? cells[depCol] : "");
+    } else if (type !== "" || !current) {
       continue;
     }
-    const entry = errors.get(type) ?? { type, dependencies: [] };
-    const dependency = depCol >= 0 ? cells[depCol] : "";
-    if (dependency && !entry.dependencies.includes(dependency)) {
-      entry.dependencies.push(dependency);
+    const details = cells.slice(typeCol + 1).join(" ");
+    for (const match of details.matchAll(/"dependency-name":\s*"([^"]+)"/gu)) {
+      addDependency(current, match[1]);
     }
-    errors.set(type, entry);
   }
   return [...errors.values()];
 }
@@ -225,17 +238,33 @@ async function findWorkflow(github, owner, repo) {
   return workflows.find((w) => w.path === WORKFLOW_PATH);
 }
 
-async function findIssue(github, owner, repo, label, state) {
-  const issues = await github.rest.issues.listForRepo({
+async function listReports(github, owner, repo, label, state, since) {
+  const issues = await github.paginate(github.rest.issues.listForRepo, {
     owner,
     repo,
     state,
     labels: label,
-    sort: state === "open" ? "created" : "updated",
-    direction: "desc",
+    ...(since ? { since: since.toISOString() } : {}),
     per_page: 100
   });
-  return issues.data.find((i) => !i.pull_request && String(i.body ?? "").startsWith(MARKER));
+  return issues.filter((i) => !i.pull_request && String(i.body ?? "").startsWith(MARKER));
+}
+
+// The oldest open report, so every run keeps updating the same one.
+async function findOpenReport(github, owner, repo, label) {
+  const reports = await listReports(github, owner, repo, label, "open");
+  return reports.sort((a, b) => a.number - b.number)[0];
+}
+
+// The latest closing time of a report closed after `since`. A closed issue's
+// updated_at is never earlier than its closed_at, so filtering on updated_at
+// keeps every report that could move the cutoff.
+async function lastClosedAt(github, owner, repo, label, since) {
+  const reports = await listReports(github, owner, repo, label, "closed", since);
+  return reports
+    .map((i) => (i.closed_at ? new Date(i.closed_at) : null))
+    .filter((d) => d && d > since)
+    .sort((a, b) => b - a)[0];
 }
 
 async function runErrors(github, owner, repo, runId, core) {
@@ -302,15 +331,12 @@ export default async function run({ github, context, core }, options = {}) {
     return { failing: [], added: [], action: "none" };
   }
 
-  const openIssue = await findIssue(github, owner, repo, label, "open");
+  const openIssue = await findOpenReport(github, owner, repo, label);
 
   // Once an issue is closed, only failures after that point open a new one.
   let since = new Date(now.getTime() - lookbackDays * DAY_MS);
   if (!openIssue) {
-    const closed = await findIssue(github, owner, repo, label, "closed");
-    if (closed?.closed_at && new Date(closed.closed_at) > since) {
-      since = new Date(closed.closed_at);
-    }
+    since = (await lastClosedAt(github, owner, repo, label, since)) ?? since;
   }
 
   const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
