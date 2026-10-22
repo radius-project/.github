@@ -41,6 +41,13 @@
     * labels ....................... "deps/<ecosystem>" on every PR (e.g. deps/github-actions, deps/npm)
     * target-branch ................ emitted automatically when synced to a non-default
                                      branch (e.g. a repo listed as `owner/repo@edge`).
+    * security-only block .......... when `target-branch` is emitted and the ecosystem uses
+                                     `directories`, a second block for the same directories
+                                     is added without `target-branch` and with
+                                     `open-pull-requests-limit: 0`. Security updates always
+                                     run on the default branch and ignore any block that sets
+                                     `target-branch`, so without this block they run ungrouped
+                                     and Dependabot only checks the first directory.
 -#}
 # yaml-language-server: $schema=https://www.schemastore.org/dependabot-2.0.json
 # ------------------------------------------------------------------------------
@@ -116,5 +123,41 @@ updates:
 {% endfor %}
 {% endif %}
 {% endfor %}
+{% endif %}
+{% if repo.branch and repo.branch != "default" and eco.directories %}
+
+  # Security updates run on the default branch and skip blocks that set
+  # target-branch. This block groups them across all of the directories above.
+  - package-ecosystem: {{ eco.type }}
+    directories:
+{% for dir in eco.directories %}
+      - "{{ dir }}"
+{% endfor %}
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: {{ "ci" if eco.type == "github-actions" else "chore" }}
+      include: scope
+    labels:
+      - dependencies
+      - deps/{{ eco.type }}
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+{% if eco.ignore %}
+    ignore:
+{% for rule in eco.ignore %}
+      - dependency-name: "{{ rule['dependency-name'] }}"
+{% if rule['update-types'] %}
+        update-types:
+{% for ut in rule['update-types'] %}
+          - "{{ ut }}"
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}
 {% endif %}
 {% endfor %}
