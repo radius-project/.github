@@ -1,0 +1,48 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs:
+# - ../actions/dependabot-failures/README.md
+# - https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow
+---
+name: __dependabot-failures
+
+on:
+  workflow_call:
+    inputs:
+      label:
+        description: Label used to find and tag the issue. Created if the repository does not have it.
+        type: string
+        required: false
+        default: test-failure
+      lookback-days:
+        description: How many days of Dependabot runs to check. Dependabot version updates run weekly, so keep this above 7.
+        type: number
+        required: false
+        default: 8
+      dry-run:
+        description: Log the issue that would be written and change nothing.
+        type: boolean
+        required: false
+        default: false
+
+permissions: {}
+
+jobs:
+  check:
+    # Scheduled runs only in the organization, so forks never open issues.
+    # Manual runs work anywhere, which allows testing from a fork.
+    if: github.event_name != 'schedule' || github.repository_owner == 'radius-project'
+    name: Check Dependabot runs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      # `$/` resolves to this repository at the commit of this reusable
+      # workflow, so the action and its script always match the caller's ref.
+      - name: Check Dependabot runs
+        uses: $/.github/actions/dependabot-failures
+        with:
+          label: ${{ inputs.label }}
+          lookback-days: ${{ inputs.lookback-days }}
+          dry-run: ${{ inputs.dry-run }}
