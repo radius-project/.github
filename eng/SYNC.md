@@ -28,6 +28,7 @@ This document describes the centralized file synchronization used across the `ra
   - [PR Author Assignment (Radius PoC)](#pr-author-assignment-radius-poc)
   - [PR Status Labels](#pr-status-labels)
   - [Labels](#labels)
+  - [Security Insights Validation](#security-insights-validation)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -260,15 +261,16 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 
 ### Examples
 
-| Workflow                  | Description                                   |
-|---------------------------|-----------------------------------------------|
-| `__dependency-review.yml` | Runs dependency scanning with standard config |
-| `__lint.yml`              | Shared linting workflow                       |
-| `__build.yml`             | Shared build workflow                         |
-| `__pr-author.yml`         | Assigns unassigned human PRs to their author  |
-| `__pr-status-labels.yml`  | Applies PR lifecycle labels                   |
-| `__pr-holds.yml`          | Fails when a PR carries a manual hold label   |
-| `__labels.yml`            | Applies a repository's synced labels file     |
+| Workflow                           | Description                                         |
+|------------------------------------|-----------------------------------------------------|
+| `__dependency-review.yml`          | Runs dependency scanning with standard config       |
+| `__lint.yml`                       | Shared linting workflow                             |
+| `__build.yml`                      | Shared build workflow                               |
+| `__pr-author.yml`                  | Assigns unassigned human PRs to their author        |
+| `__pr-status-labels.yml`           | Applies PR lifecycle labels                         |
+| `__pr-holds.yml`                   | Fails when a PR carries a manual hold label         |
+| `__labels.yml`                     | Applies a repository's synced labels file           |
+| `__validate-security-insights.yml` | Validates a repository's Security Insights manifest |
 
 ### Workflow Relationship Diagram
 
@@ -331,6 +333,12 @@ Label definitions are managed only in this repository and synced to `.github/lab
 - The `repo_labels` template variable of that group in `.github/sync.yml` adds repository-specific labels, keyed by repository name. The template header documents the label options. List a newly enrolled repository's existing `pr:` labels there unchanged so the sync does not alter them.
 
 Repositories must not edit their synced `.github/labels.yml`; change the template or `repo_labels` instead, and the Sync workflow opens a pull request with the rendered file. When that pull request merges, the synced `Labels` workflow applies the file with `skip-delete`, so labels the file does not list are preserved. The workflow also reverts manual edits to the labels the file defines. Renaming lifecycle labels through the `PR_STATUS_LABELS` variable needs matching definitions in `repo_labels`, each with `from_name` set to the old name. See [Label catalog](../.github/actions/pr-status-labels/README.md#label-catalog).
+
+### Security Insights Validation
+
+Security Insights validation is maintained in [the reusable workflow](../.github/workflows/__validate-security-insights.yml) and exposed through [a thin caller template](../workflow-templates/validate-security-insights.yml). It validates the repository's `security-insights.yml` against the pinned [OpenSSF Security Insights](https://github.com/ossf/security-insights) schema. When the manifest declares `header.project-si-source`, the workflow requires it to be this repository's [project-level manifest](../security-insights.yml) and validates that manifest too.
+
+The dedicated Security Insights group in `.github/sync.yml` enrolls only repositories that publish a `security-insights.yml` manifest, currently `radius-project/.github` and `radius-project/radius`. The workflow fails when the manifest is missing, so add a repository to that group only when it publishes one.
 
 ---
 

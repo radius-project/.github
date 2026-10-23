@@ -195,6 +195,16 @@ group:
       - source: workflow-templates/spellcheck.yml
         dest: .github/workflows/spellcheck.yaml
 
+  # Security Insights validation - only for repos that publish a
+  # security-insights.yml manifest. The destination matches the existing
+  # per-repo workflow so it is replaced instead of duplicated.
+  - repos: |
+      radius-project/.github
+      radius-project/radius
+    files:
+      - source: workflow-templates/validate-security-insights.yml
+        dest: .github/workflows/validate-security-insights.yml
+
   # ----------------------------------------------------------------------------
   # Dependabot - generated per-repo from one universal template. Declare only the
   # package ecosystems each repo uses. For single-path configs, omit `directory` to
