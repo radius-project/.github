@@ -1,0 +1,234 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs: ../../eng/SYNC.md#signed-release-upmerge
+---
+name: __upmerge
+
+on:
+  workflow_call:
+    inputs:
+      preserve-paths:
+        description: Newline-delimited literal repository-relative file paths whose edge state, including absence, must be preserved.
+        type: string
+        required: true
+    secrets:
+      RADIUS_RELEASE_BOT_CLIENT_ID:
+        description: Release GitHub App client ID.
+        required: true
+      RADIUS_RELEASE_BOT_PRIVATE_KEY:
+        description: Release GitHub App private key.
+        required: true
+
+permissions: {}
+
+jobs:
+  upmerge:
+    name: Upmerge to edge
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      # The release App needs Contents, Pull requests and Workflows: Read & Write
+      # on the caller repository only, not on the shared workflow repository.
+      - name: Get App Token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RADIUS_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.RADIUS_RELEASE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Get bot details
+        id: bot-details
+        uses: raven-actions/bot-details@ee8966a9ff6e7e42cbfc4a56b4ddb60a9d1b40a6 # v1.2.0
+        with:
+          bot-slug-name: ${{ steps.app-token.outputs.app-slug }}
+          set-env: false
+
+      - name: Checkout edge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: edge
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+          # Fetch the immutable caller source with this short-lived token.
+          persist-credentials: true
+
+      - name: Prepare upmerge
+        id: prepare
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          PRESERVE_PATHS: ${{ inputs.preserve-paths }}
+          # Git requires an identity even for --squash --no-commit.
+          GIT_COMMITTER_NAME: ${{ steps.bot-details.outputs.name }}
+          GIT_COMMITTER_EMAIL: ${{ steps.bot-details.outputs.email }}
+        run: |
+          set -euo pipefail
+          export GIT_LITERAL_PATHSPECS=1
+          if [[ ! "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::Expected the full workflow source commit SHA."
+              exit 1
+          fi
+
+          preserve_paths=()
+          while IFS= read -r path || [[ -n "${path}" ]]; do
+              path="${path%$'\r'}"
+              if [[ -z "${path}" ]]; then
+                  continue
+              fi
+              if [[ "${path}" == *\\* || "${path}" == *:* ||
+                  "/${path}/" == *"/../"* || "/${path}/" == *"/./"* ||
+                  "/${path}/" == *"/.git/"* || "/${path}/" == *"//"* ||
+                  "${path}" =~ [[:cntrl:]] ]]; then
+                  echo "::error::preserve-paths must contain literal repository-relative file paths without traversal."
+                  exit 1
+              fi
+              preserve_paths+=("${path}")
+          done <<< "${PRESERVE_PATHS}"
+          if [[ "${#preserve_paths[@]}" -eq 0 ]]; then
+              echo "::error::At least one preserved file path is required."
+              exit 1
+          fi
+
+          BASE_SHA=$(git rev-parse --verify HEAD)
+          BRANCH=$(git symbolic-ref --short HEAD)
+          STATUS=$(git status --porcelain --untracked-files=all)
+          if [[ "${BRANCH}" != "edge" || -n "${STATUS}" ]]; then
+              echo "::error::Upmerge preparation requires a clean edge checkout."
+              exit 1
+          fi
+          git fetch --no-tags origin "${SOURCE_SHA}"
+          FETCHED_SHA=$(git rev-parse --verify "FETCH_HEAD^{commit}")
+          if [[ "${FETCHED_SHA}" != "${SOURCE_SHA}" ]]; then
+              echo "::error::Fetched revision does not match the workflow source."
+              exit 1
+          fi
+          for revision in "${BASE_SHA}" "${SOURCE_SHA}"; do
+              for path in "${preserve_paths[@]}"; do
+                  entry=$(git ls-tree "${revision}" -- "${path}")
+                  if [[ "${entry}" == "040000 tree "* ]]; then
+                      echo "::error::preserve-paths accepts file paths, not directories."
+                      exit 1
+                  fi
+              done
+          done
+
+          restore_edge_files() {
+              local path original
+              for path in "${preserve_paths[@]}"; do
+                  original=$(git ls-tree "${BASE_SHA}" -- "${path}")
+                  if [[ -n "${original}" ]]; then
+                      git restore --source="${BASE_SHA}" --staged --worktree -- "${path}"
+                  else
+                      git rm --force --ignore-unmatch -- "${path}"
+                  fi
+              done
+          }
+
+          MERGE_STATUS=0
+          git merge --squash --no-commit "${SOURCE_SHA}" || MERGE_STATUS=$?
+          UNMERGED=$(git ls-files --unmerged)
+          case "${MERGE_STATUS}:${UNMERGED:+conflicts}" in
+              0: | 1:conflicts) ;;
+              *)
+                  echo "::error::Git merge failed without a valid content-conflict result."
+                  exit 1
+                  ;;
+          esac
+
+          restore_edge_files
+          UNMERGED=$(git ls-files --unmerged)
+          CONFLICT=false
+          if [[ -n "${UNMERGED}" ]]; then
+              echo "::warning::Content conflicts require a draft PR and manual resolution."
+              # Keep HEAD on edge. A provisional source snapshot is not a
+              # resolved merge and must not import the source commit's parents.
+              git read-tree --reset -u "${SOURCE_SHA}"
+              restore_edge_files
+              CONFLICT=true
+          fi
+
+          UNMERGED=$(git ls-files --unmerged)
+          HEAD_SHA=$(git rev-parse --verify HEAD)
+          if [[ -n "${UNMERGED}" || "${HEAD_SHA}" != "${BASE_SHA}" ]]; then
+              echo "::error::Preparation left unmerged files or changed the edge parent."
+              exit 1
+          fi
+
+          DIFF_STATUS=0
+          git diff --cached --quiet "${BASE_SHA}" -- || DIFF_STATUS=$?
+          case "${DIFF_STATUS}" in
+              0)
+                  HAS_CHANGES=false
+                  echo "No changes to upmerge to edge."
+                  ;;
+              1) HAS_CHANGES=true ;;
+              *)
+                  echo "::error::Unable to determine the prepared upmerge diff."
+                  exit 1
+                  ;;
+          esac
+          if [[ "${CONFLICT}" == "true" && "${HAS_CHANGES}" == "false" ]]; then
+              echo "::error::Conflicts produced no reviewable diff; manual recovery is required."
+              exit 1
+          fi
+          {
+              echo "base-sha=${BASE_SHA}"
+              echo "conflict=${CONFLICT}"
+              echo "has-changes=${HAS_CHANGES}"
+          } >> "${GITHUB_OUTPUT}"
+
+      # The release coordinator discovers this exact step name and its time window.
+      # Do not override author/committer: GitHub signs as the authenticated App.
+      - name: Create pull request
+        id: pull-request
+        if: steps.prepare.outputs.has-changes == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          sign-commits: true
+          commit-message: |
+            Upmerge ${{ github.ref_name }} to edge
+
+            Signed-off-by: ${{ steps.bot-details.outputs.name }} <${{ steps.bot-details.outputs.email }}>
+          branch: upmerge/${{ github.run_id }}-${{ github.run_attempt }}
+          base: edge
+          title: Upmerge to edge
+          draft: ${{ steps.prepare.outputs.conflict == 'true' }}
+          body: |
+            Upmerge to edge (kicked off by @${{ github.triggering_actor }}).
+
+            Source: `${{ github.ref_name }}` at `${{ github.sha }}`.
+            Edge snapshot: `${{ steps.prepare.outputs.base-sha }}`.
+
+            ${{ steps.prepare.outputs.conflict == 'true' && '**Manual resolution required.** This draft is a provisional source snapshot, not a resolved merge. Other edge-only changes may be absent; restore them and resolve conflicts before marking this PR ready.' || 'Prepared the clean merged tree, preserving changes from both branches without importing source commit history.' }}
+
+            These files retain their edge state, including absence or deletion:
+
+            ```text
+            ${{ inputs.preserve-paths }}
+            ```
+
+            Normal review and branch rules still apply.
+
+      - name: Require signed pull request
+        if: steps.prepare.outputs.has-changes == 'true'
+        shell: bash
+        env:
+          COMMITS_VERIFIED: ${{ steps.pull-request.outputs.pull-request-commits-verified }}
+          PR_NUMBER: ${{ steps.pull-request.outputs.pull-request-number }}
+          PR_URL: ${{ steps.pull-request.outputs.pull-request-url }}
+          PR_HEAD_SHA: ${{ steps.pull-request.outputs.pull-request-head-sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${COMMITS_VERIFIED}" != "true" || -z "${PR_NUMBER}" ||
+              -z "${PR_URL}" || -z "${PR_HEAD_SHA}" ]]; then
+              echo "::error::The action did not return a GitHub-verified commit and pull request."
+              exit 1
+          fi

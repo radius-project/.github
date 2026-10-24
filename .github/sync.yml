@@ -110,6 +110,27 @@ group:
       - source: sync-templates/.github/instructions/markdown.instructions.md
         dest: .github/instructions/markdown.instructions.md
 
+  # Signed release upmerge - thin callers only; implementation and tests stay
+  # here. Keep the destination filename used by the release coordinator.
+  - repos: |
+      radius-project/docs@edge
+    files:
+      - source: sync-templates/.github/workflows/upmerge.yaml.njk
+        dest: .github/workflows/upmerge.yaml
+        template:
+          preserve_paths:
+            - docs/config.toml
+            - docs/layouts/partials/hooks/body-end.html
+
+  - repos: |
+      radius-project/samples@edge
+    files:
+      - source: sync-templates/.github/workflows/upmerge.yaml.njk
+        dest: .github/workflows/upmerge.yaml
+        template:
+          preserve_paths:
+            - bicepconfig.json
+
   # PR status labels - lifecycle labels, the read-only review signal relay, and
   # the centrally managed .github/labels.yml with the workflow that applies it.
   # Enrolled: .github, ai-extensions, dashboard, docs (edge), lab, radius,
