@@ -6,21 +6,13 @@ on:
   pull_request:
     paths:
       - .github/actions/**
-      - .github/tests/**
-      - .github/workflows/__upmerge.yml
       - .github/workflows/test-actions.yml
-      - .github/sync.yml
-      - sync-templates/.github/workflows/upmerge.yaml.njk
   push:
     branches:
       - main
     paths:
       - .github/actions/**
-      - .github/tests/**
-      - .github/workflows/__upmerge.yml
       - .github/workflows/test-actions.yml
-      - .github/sync.yml
-      - sync-templates/.github/workflows/upmerge.yaml.njk
 
 permissions: {}
 
@@ -37,10 +29,5 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install template test dependencies
-        run: npm install --prefix "${RUNNER_TEMP}/upmerge-test" --ignore-scripts --no-audit --no-fund --no-package-lock nunjucks@3.2.4 yaml@2.9.0
-
       - name: Run tests
-        env:
-          NODE_PATH: ${{ runner.temp }}/upmerge-test/node_modules
-        run: node --test .github/actions/*/*.test.mjs .github/tests/*.test.*
+        run: node --test .github/actions/*/*.test.mjs

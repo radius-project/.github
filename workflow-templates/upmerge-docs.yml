@@ -1,4 +1,3 @@
-{% raw %}
 # yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
 # ------------------------------------------------------------------------------
 # This file is synced from the radius-project/.github repository.
@@ -21,7 +20,8 @@ jobs:
       contents: read
     with:
       preserve-paths: |
-{% endraw %}        {{ preserve_paths | join("\n        ") | safe }}
-{% raw %}    secrets:
+        docs/config.toml
+        docs/layouts/partials/hooks/body-end.html
+    secrets:
       RADIUS_RELEASE_BOT_CLIENT_ID: ${{ secrets.RADIUS_RELEASE_BOT_CLIENT_ID }}
-      RADIUS_RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RADIUS_RELEASE_BOT_PRIVATE_KEY }}{% endraw %}
+      RADIUS_RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RADIUS_RELEASE_BOT_PRIVATE_KEY }}

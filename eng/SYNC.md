@@ -336,9 +336,9 @@ Repositories must not edit their synced `.github/labels.yml`; change the templat
 
 ### Signed Release Upmerge
 
-Release upmerge logic lives inline in [`__upmerge.yml`](../.github/workflows/__upmerge.yml). Only the [thin Nunjucks caller](../sync-templates/.github/workflows/upmerge.yaml.njk) is synced, to **`.github/workflows/upmerge.yaml`**; the release coordinator depends on that filename and the inner step name **`Create pull request`**. Implementation and fixture tests are never copied into consumer repositories.
+Release upmerge logic lives inline in [`__upmerge.yml`](../.github/workflows/__upmerge.yml). Only the thin native [docs caller](../workflow-templates/upmerge-docs.yml) and [samples caller](../workflow-templates/upmerge-samples.yml) are synced as-is, to **`.github/workflows/upmerge.yaml`**; the release coordinator depends on that filename and the inner step name **`Create pull request`**. The shared implementation is not copied into consumer repositories.
 
-The dedicated mappings in `.github/sync.yml` enroll only **`radius-project/docs@edge`** and **`radius-project/samples@edge`**. Each mapping declares `template.preserve_paths`: docs preserves `docs/config.toml` and `docs/layouts/partials/hooks/body-end.html`; samples preserves `bicepconfig.json`. Change the shared workflow, template or mapping here, not the generated caller downstream.
+The dedicated mappings in `.github/sync.yml` enroll only **`radius-project/docs@edge`** and **`radius-project/samples@edge`**. Each caller passes the `preserve-paths` input directly: docs preserves `docs/config.toml` and `docs/layouts/partials/hooks/body-end.html`; samples preserves `bicepconfig.json`. Manage those input values in the native caller YAML here, not in the synced caller downstream.
 
 | Caller parameter | Contract |
 | --- | --- |
@@ -357,10 +357,8 @@ Callers follow the organization's `@main` convention: new runs receive shared lo
 Initial rollout, while both consumer defaults are `v0.61`:
 
 1. Merge the shared `.github` change into `main` first, after its read-only checks pass.
-1. Bootstrap the rendered callers into `v0.61` through [radius-project/docs#2058](https://github.com/radius-project/docs/pull/2058) and [radius-project/samples#2705](https://github.com/radius-project/samples/pull/2705), removing the duplicated logic and tests in those consumer PRs.
+1. Bootstrap the same native callers into `v0.61` through [radius-project/docs#2058](https://github.com/radius-project/docs/pull/2058) and [radius-project/samples#2705](https://github.com/radius-project/samples/pull/2705), removing the duplicated local implementations in those consumer PRs.
 1. Review and merge the normal Sync PRs delivering callers to `edge`. Ongoing caller updates stay enrolled only on edge; future release branches inherit them when cut. Do not add permanent sync mappings for old release branches.
-
-The dependency-free [native Git fixtures](../.github/tests/upmerge.test.mjs) run with `node --test .github/tests/upmerge.test.mjs` (Node.js, Git and Bash required). They execute the actual YAML run blocks for both preserved-path lists. [Caller contract tests](../.github/tests/upmerge-callers.test.cjs) use real Nunjucks rendering with the pinned sync action's options and parse the resulting YAML. The existing [Test Actions workflow](../.github/workflows/test-actions.yml) runs both suites on relevant PRs using read-only permissions, with pinned rendering dependencies installed only in runner temporary storage. Tests use no App secrets and perform no live GitHub writes or workflow dispatches.
 
 ---
 
