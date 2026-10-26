@@ -28,6 +28,7 @@ This document describes the centralized file synchronization used across the `ra
   - [PR Author Assignment (Radius PoC)](#pr-author-assignment-radius-poc)
   - [PR Status Labels](#pr-status-labels)
   - [Labels](#labels)
+  - [Signed Release Upmerge](#signed-release-upmerge)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -269,6 +270,7 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 | `__pr-status-labels.yml`  | Applies PR lifecycle labels                   |
 | `__pr-holds.yml`          | Fails when a PR carries a manual hold label   |
 | `__labels.yml`            | Applies a repository's synced labels file     |
+| `__upmerge.yml`           | Creates signed release-to-edge net-diff PRs    |
 
 ### Workflow Relationship Diagram
 
@@ -331,6 +333,32 @@ Label definitions are managed only in this repository and synced to `.github/lab
 - The `repo_labels` template variable of that group in `.github/sync.yml` adds repository-specific labels, keyed by repository name. The template header documents the label options. List a newly enrolled repository's existing `pr:` labels there unchanged so the sync does not alter them.
 
 Repositories must not edit their synced `.github/labels.yml`; change the template or `repo_labels` instead, and the Sync workflow opens a pull request with the rendered file. When that pull request merges, the synced `Labels` workflow applies the file with `skip-delete`, so labels the file does not list are preserved. The workflow also reverts manual edits to the labels the file defines. Renaming lifecycle labels through the `PR_STATUS_LABELS` variable needs matching definitions in `repo_labels`, each with `from_name` set to the old name. See [Label catalog](../.github/actions/pr-status-labels/README.md#label-catalog).
+
+### Signed Release Upmerge
+
+Release upmerge logic lives inline in [`__upmerge.yml`](../.github/workflows/__upmerge.yml). Only the thin native [docs caller](../workflow-templates/upmerge-docs.yml) and [samples caller](../workflow-templates/upmerge-samples.yml) are synced as-is, to **`.github/workflows/upmerge.yaml`**; the release coordinator depends on that filename and the inner step name **`Create pull request`**. The shared implementation is not copied into consumer repositories.
+
+The dedicated mappings in `.github/sync.yml` enroll only **`radius-project/docs@edge`** and **`radius-project/samples@edge`**. Each caller passes the `preserve-paths` input directly: docs preserves `docs/config.toml` and `docs/layouts/partials/hooks/body-end.html`; samples preserves `bicepconfig.json`. Manage those input values in the native caller YAML here, not in the synced caller downstream.
+
+| Caller parameter | Contract |
+| --- | --- |
+| `preserve-paths` input | Required newline-delimited list of literal repository-relative file paths. Use `/` separators; blank lines and CRLF lists are accepted. Absolute paths, traversal, `.git` components, backslashes, pathspec prefixes and directories are rejected. Files retain their edge state, including absence or deletion. |
+| `RADIUS_RELEASE_BOT_CLIENT_ID` secret | Required release GitHub App client ID, passed explicitly by the caller. |
+| `RADIUS_RELEASE_BOT_PRIVATE_KEY` secret | Required release GitHub App private key, passed explicitly by the caller. |
+
+Callers expose only `workflow_dispatch` and grant the reusable job `contents: read`. The App installation must already have Contents, Pull requests and Workflows write access to the caller repository. Its short-lived token is scoped to that repository only; it needs no installation on `.github`. No new grants or secrets are provisioned by the workflow.
+
+The workflow uses the caller's repository, ref and immutable `github.sha`, checks out edge, and prepares a native Git squash without importing source ancestry. The pinned create-pull-request action publishes one App-signed net-diff commit with an explicit App DCO trailer. Only the preparation step receives a committer identity; the signing action's author and committer are not overridden. The native `pull-request-commits-verified` output and returned PR details must confirm publication.
+
+A clean merge preserves both branches' changes. Conflicts confined to preserved files are resolved using edge's state without discarding other merged content. Other content conflicts produce an explicitly provisional **draft source snapshot**, which may omit edge-only changes and requires manual reconciliation. Unrelated Git failures, or conflicts producing no reviewable diff, fail the run. A genuine no-op **skips `Create pull request`**, so the coordinator does not discover an old or empty PR. Review and branch rules still apply.
+
+Callers follow the organization's `@main` convention: new runs receive shared logic updates without another caller sync. The source commit still comes from the caller's recorded execution. [GitHub's rerun rules](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations#behavior-of-reusable-workflows-when-re-running-jobs) distinguish rerunning failed/specific jobs, which reuse the original shared commit, from rerunning all jobs, which resolves `@main` again. Historical inline runs do not adopt the new caller by retrying; recorded release receipts are not rewritten.
+
+Initial rollout, while both consumer defaults are `v0.61`:
+
+1. Merge the shared `.github` change into `main` first, after its read-only checks pass.
+1. Bootstrap the same native callers into `v0.61` through [radius-project/docs#2058](https://github.com/radius-project/docs/pull/2058) and [radius-project/samples#2705](https://github.com/radius-project/samples/pull/2705), removing the duplicated local implementations in those consumer PRs.
+1. Review and merge the normal Sync PRs delivering callers to `edge`. Ongoing caller updates stay enrolled only on edge; future release branches inherit them when cut. Do not add permanent sync mappings for old release branches.
 
 ---
 

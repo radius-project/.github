@@ -110,6 +110,20 @@ group:
       - source: sync-templates/.github/instructions/markdown.instructions.md
         dest: .github/instructions/markdown.instructions.md
 
+  # Signed release upmerge - native callers only; shared implementation stays
+  # here. Keep the destination filename used by the release coordinator.
+  - repos: |
+      radius-project/docs@edge
+    files:
+      - source: workflow-templates/upmerge-docs.yml
+        dest: .github/workflows/upmerge.yaml
+
+  - repos: |
+      radius-project/samples@edge
+    files:
+      - source: workflow-templates/upmerge-samples.yml
+        dest: .github/workflows/upmerge.yaml
+
   # PR status labels - lifecycle labels, the read-only review signal relay, and
   # the centrally managed .github/labels.yml with the workflow that applies it.
   # Enrolled: .github, ai-extensions, dashboard, docs (edge), lab, radius,
