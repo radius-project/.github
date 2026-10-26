@@ -123,7 +123,6 @@ The sync workflow (`.github/workflows/sync.yml`) is triggered when:
 1. **AND** changes are made to any of these paths:
    - `.github/workflows/sync.yml` (the workflow itself)
    - `.github/sync.yml` (sync configuration)
-   - `.github/actions/release-backport/**` (shared helpers also used locally by Radius)
    - `sync-templates/**` (any file in sync-templates)
    - `workflow-templates/*.yaml` or `workflow-templates/*.yml`
 
@@ -382,7 +381,11 @@ Each caller must have access to `RADIUS_RELEASE_BOT_CLIENT_ID` and `RADIUS_RELEA
 
 Merge this shared implementation first, then review the normal Sync PRs in the four repositories. Create each supported channel's `backport release/X.Y` label if absent and allow rebase merges on `release/*`. Existing release branches also need the thin caller before their push events can advance the queue: label the merged caller-sync PR for those channels and merge its generated backports, or reconcile the channel manually from `main` until that bootstrap completes. New release branches inherit the caller; do not add permanent version-specific sync mappings. Retain Radius's required release-branch provenance check and all normal review rules.
 
-The three helper scripts are also synced back to Radius's `.github/scripts/` because release preparation and local checks consume them there. Their source of truth is [the shared action directory](../.github/actions/release-backport/), not the synced copies. Existing action CI exercises the JavaScript queue logic; these are script behavior checks, not workflow-YAML or caller-render tests.
+All backport implementation and behavior tests live only in [the shared action directory](../.github/actions/release-backport/). No helper scripts or helper tests are synced to consumer repositories. The action's `select` and `prepare` operations support the reusable backport workflow; its read-only `collect` operation supplies live backport records for release preparation and validation.
+
+Radius calls `radius-project/.github/.github/actions/release-backport@main` directly with `operation: collect`, `channel`, and `output-file`; preparation may also pass comma-separated `explicit-prs` and its App token through `github-token`. The caller checks out trusted main history first. The action writes the same JSON record array used by the shared backport workflow. Radius's own plan validator consumes that file with `--backports-file` and still compares it with the approved plan; it does not contain a second collection implementation or download standalone helper scripts.
+
+Run `node --test .github/actions/*/*.test.mjs` in this repository with Node.js, Bash, Git, and jq to exercise the queue, collection, and cherry-pick behavior. Existing action CI runs the same command, including the relocated shell fixtures. These are action business-logic checks, not workflow-YAML or caller-render tests.
 
 ---
 

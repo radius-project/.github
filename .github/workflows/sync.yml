@@ -9,7 +9,6 @@ on:
     paths:
       - .github/workflows/sync.yml
       - .github/sync.yml
-      - .github/actions/release-backport/**
       - sync-templates/**
       - workflow-templates/*.yaml
       - workflow-templates/*.yml

@@ -2,18 +2,24 @@
 # docs: ../../../eng/SYNC.md#release-backports
 ---
 name: Release Backport
-description: Select or prepare one source-traceable backport per release channel.
+description: Select, collect, or prepare source-traceable release backports.
 author: radius-project
 
 inputs:
   operation:
-    description: Select pending backports or prepare the selected backport.
+    description: Select pending backports, collect live records, or prepare the selected backport.
     required: true
   github-token:
     description: Repository token for reading PRs and fetching the selected source.
     default: ${{ github.token }}
   channel:
     description: Release channel in X.Y format; selection otherwise follows the triggering event.
+    default: ""
+  explicit-prs:
+    description: Optional comma-separated merged main PRs to include when collecting.
+    default: ""
+  output-file:
+    description: Required JSON output path for the collect operation.
     default: ""
   source-pr:
     description: Merged source PR number.
@@ -63,9 +69,23 @@ runs:
         OPERATION: ${{ inputs.operation }}
       run: |
         case "${OPERATION}" in
-          select | prepare) ;;
-          *) echo "::error::operation must be select or prepare"; exit 1 ;;
+          select | collect | prepare) ;;
+          *) echo "::error::operation must be select, collect, or prepare"; exit 1 ;;
         esac
+
+    - name: Collect backport records
+      if: inputs.operation == 'collect'
+      shell: bash
+      env:
+        BACKPORT_ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        CHANNEL: ${{ inputs.channel }}
+        EXPLICIT_PRS: ${{ inputs.explicit-prs }}
+        OUTPUT_FILE: ${{ inputs.output-file }}
+      run: |
+        bash "${BACKPORT_ACTION_PATH}/collect-release-backports.sh" \
+          --repository "${GITHUB_REPOSITORY}" --channel "${CHANNEL}" \
+          --explicit-prs "${EXPLICIT_PRS}" --output "${OUTPUT_FILE}"
 
     - name: Select pending backports
       if: inputs.operation == 'select'
