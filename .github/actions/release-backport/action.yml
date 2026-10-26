@@ -144,8 +144,8 @@ runs:
         fi
         result="$(
           gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 1000 \
-            --base "release/${CHANNEL}" --json number,url,headRefName \
-            --jq '[.[] | select(.headRefName | startswith("automation/backport-"))][0] // empty'
+            --base "release/${CHANNEL}" --json number,url,headRefName,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository == false and (.headRefName | startswith("automation/backport-")))][0] // empty'
         )"
         if [[ -n "${result}" ]]; then
           {

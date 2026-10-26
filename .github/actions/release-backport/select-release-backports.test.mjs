@@ -42,6 +42,7 @@ const source = (number) => ({
 
 const selectNextBackport = (options) =>
   select({
+    repository: "radius-project/radius",
     mainHistory: [source(101).merge_commit_sha, source(102).merge_commit_sha],
     ...options
   });
@@ -89,7 +90,14 @@ test("serializes two backports through successive release pushes", () => {
   const deferred = selectNextBackport({
     channel: "0.60",
     sources: [first, second],
-    openBackports: [{ head: { ref: "automation/backport-101-to-0.60" } }],
+    openBackports: [
+      {
+        head: {
+          ref: "automation/backport-101-to-0.60",
+          repo: { full_name: "radius-project/radius" }
+        }
+      }
+    ],
     historicalBackports: []
   });
   assert.deepEqual(deferred, []);
@@ -112,6 +120,66 @@ test("serializes two backports through successive release pushes", () => {
     historicalBackports: [completedFirst]
   });
   assert.equal(next[0].source_pr, 102);
+});
+
+test("only same-repository automation PRs block the release queue", () => {
+  for (const repo of ["radius", "bicep-types-aws", "dashboard", "recipes"]) {
+    const repository = `radius-project/${repo}`;
+    for (const [headRepo, ref, blocked] of [
+      [
+        { full_name: `contributor/${repo}` },
+        "automation/backport-anything",
+        false
+      ],
+      [
+        { full_name: "radius-project/another-repo" },
+        "automation/backport-anything",
+        false
+      ],
+      [null, "automation/backport-anything", false],
+      [undefined, "automation/backport-anything", false],
+      [{ full_name: repository }, "feature/unrelated", false],
+      [{ full_name: repository }, "automation/backport-101-to-0.60", true]
+    ]) {
+      const selected = selectNextBackport({
+        repository,
+        channel: "0.60",
+        sources: [source(101)],
+        openBackports: [{ head: { ref, repo: headRepo } }],
+        historicalBackports: []
+      });
+      assert.equal(
+        selected.length,
+        blocked ? 0 : 1,
+        `${repository}: ${headRepo?.full_name ?? "missing repository"}:${ref}`
+      );
+    }
+    const selected = selectNextBackport({
+      repository,
+      channel: "0.60",
+      sources: [source(101)],
+      openBackports: [
+        {
+          head: {
+            ref: "automation/backport-anything",
+            repo: { full_name: `contributor/${repo}` }
+          }
+        },
+        {
+          head: {
+            ref: "automation/backport-102-to-0.60",
+            repo: { full_name: repository }
+          }
+        }
+      ],
+      historicalBackports: []
+    });
+    assert.deepEqual(
+      selected,
+      [],
+      "a fork PR must not mask a real queue blocker"
+    );
+  }
 });
 
 test("does not accept a merged marker without the exact trailer", () => {
@@ -389,12 +457,32 @@ test("main merge events and release pushes use the same history-ordered queue", 
           { eventName: "push", ref: "refs/heads/release/0.60" },
           { eventName: "workflow_dispatch", channel: "0.60" }
         ]) {
-          const result = await selectReleaseBackports({
-            github,
-            context: { repo: { owner: "radius-project", repo }, ...event },
-            channel: event.channel
-          });
-          assert.equal(result[0].source_pr, 102);
+          for (const [owner, blocked] of [
+            ["contributor", false],
+            ["radius-project", true]
+          ]) {
+            github.rest.pulls.list = async ({ state }) =>
+              state === "open" ?
+                [
+                  {
+                    head: {
+                      ref: "automation/backport-102-to-0.60",
+                      repo: { full_name: `${owner}/${repo}` }
+                    }
+                  }
+                ]
+              : [];
+            const result = await selectReleaseBackports({
+              github,
+              context: { repo: { owner: "radius-project", repo }, ...event },
+              channel: event.channel
+            });
+            if (blocked) {
+              assert.deepEqual(result, []);
+            } else {
+              assert.equal(result[0].source_pr, 102);
+            }
+          }
         }
       }
     }

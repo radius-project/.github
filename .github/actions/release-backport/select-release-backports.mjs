@@ -139,6 +139,7 @@ export async function findIncludedSourceCommits({
 }
 
 export function selectNextBackport({
+  repository,
   channel,
   sources,
   mainHistory,
@@ -147,8 +148,10 @@ export function selectNextBackport({
   includedSourceCommits = []
 }) {
   if (
-    openBackports.some((pull) =>
-      pull.head.ref.startsWith("automation/backport-")
+    openBackports.some(
+      (pull) =>
+        pull.head.repo?.full_name === repository &&
+        pull.head.ref.startsWith("automation/backport-")
     )
   ) {
     return [];
@@ -259,6 +262,7 @@ export async function selectReleaseBackports({
     });
     selected.push(
       ...selectNextBackport({
+        repository: `${repository.owner}/${repository.repo}`,
         channel,
         sources,
         mainHistory,
