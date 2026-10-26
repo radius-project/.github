@@ -1,0 +1,191 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+# docs: ../../eng/SYNC.md#release-backports
+---
+name: __release-backport
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        description: Optional X.Y release channel for manual queue reconciliation.
+        type: string
+        default: ""
+    secrets:
+      RADIUS_RELEASE_BOT_CLIENT_ID:
+        required: true
+      RADIUS_RELEASE_BOT_PRIVATE_KEY:
+        required: true
+
+permissions: {}
+
+jobs:
+  select-channels:
+    name: Select release channels
+    if: >-
+      github.repository_owner == 'radius-project' &&
+      ((github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/')) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.channel != '') ||
+       (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true &&
+        (startsWith(github.event.pull_request.base.ref, 'release/') ||
+         (github.event.pull_request.base.ref == 'main' &&
+          contains(join(github.event.pull_request.labels.*.name, ' '), 'backport release/')))))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      backports: ${{ steps.channels.outputs.backports }}
+    steps:
+      - name: Checkout trusted main history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Select pending backports
+        id: channels
+        uses: $/.github/actions/release-backport
+        with:
+          operation: select
+          channel: ${{ inputs.channel }}
+
+  backport:
+    name: Backport to release/${{ matrix.channel }}
+    needs: select-channels
+    if: needs.select-channels.outputs.backports != '[]' && needs.select-channels.outputs.backports != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select-channels.outputs.backports) }}
+    concurrency:
+      group: release-backport-channel-${{ matrix.channel }}
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Create release App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.RADIUS_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.RADIUS_RELEASE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-workflows: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Checkout trusted main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Get release bot details
+        id: bot-details
+        uses: raven-actions/bot-details@ee8966a9ff6e7e42cbfc4a56b4ddb60a9d1b40a6 # v1.2.0
+        with:
+          bot-slug-name: ${{ steps.app-token.outputs.app-slug }}
+
+      - name: Prepare selected backport
+        id: prepare
+        uses: $/.github/actions/release-backport
+        with:
+          operation: prepare
+          github-token: ${{ steps.app-token.outputs.token }}
+          channel: ${{ matrix.channel }}
+          source-pr: ${{ matrix.source_pr }}
+          source-commit: ${{ matrix.source_commit }}
+          source-title: ${{ matrix.source_title }}
+          source-url: ${{ matrix.source_url }}
+          expected-base: ${{ matrix.expected_base }}
+
+      - name: Create backport pull request
+        if: steps.prepare.outputs.status == 'success' || steps.prepare.outputs.status == 'conflict'
+        id: pull-request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: ${{ steps.prepare.outputs.branch }}
+          base: release/${{ matrix.channel }}
+          commit-message: ${{ steps.prepare.outputs.commit-message }}
+          # Retain Radius's source-author and rebase-merge contract.
+          author: ${{ steps.prepare.outputs.author || steps.bot-details.outputs.name-email }}
+          committer: ${{ steps.bot-details.outputs.name-email }}
+          signoff: true
+          title: ${{ steps.prepare.outputs.title }}
+          body-path: ${{ runner.temp }}/release-backport/pull-request-body.md
+          draft: ${{ steps.prepare.outputs.status == 'conflict' }}
+          delete-branch: true
+
+      - name: Verify backport commit authorship
+        if: >-
+          steps.pull-request.outputs.pull-request-operation == 'created' ||
+          steps.pull-request.outputs.pull-request-operation == 'updated'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_SHA: ${{ steps.pull-request.outputs.pull-request-head-sha }}
+          EXPECTED_AUTHOR: ${{ steps.prepare.outputs.author || steps.bot-details.outputs.name-email }}
+        run: |
+          set -euo pipefail
+          actual="$(
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}" \
+              --jq '"\(.commit.author.name) <\(.commit.author.email)>"'
+          )"
+          [[ "${actual}" == "${EXPECTED_AUTHOR}" ]] || {
+            echo "::error::Backport author ${actual} is not ${EXPECTED_AUTHOR}."
+            exit 1
+          }
+
+      - name: Comment with conflict handoff
+        if: >-
+          steps.prepare.outputs.status == 'conflict' &&
+          steps.pull-request.outputs.pull-request-operation == 'created'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SOURCE_PR: ${{ matrix.source_pr }}
+          CHANNEL: ${{ matrix.channel }}
+          BACKPORT_URL: ${{ steps.pull-request.outputs.pull-request-url }}
+        run: |
+          set -euo pipefail
+          comment="${RUNNER_TEMP}/release-backport-comment.md"
+          {
+            echo "The automated backport to \`release/${CHANNEL}\` conflicted."
+            echo
+            echo "Draft backport PR: ${BACKPORT_URL}"
+            echo
+            cat "${RUNNER_TEMP}/release-backport/conflict-handoff.md"
+          } > "${comment}"
+          gh pr comment "${SOURCE_PR}" --repo "${GITHUB_REPOSITORY}" --body-file "${comment}"
+
+      - name: Summarize backport
+        shell: bash
+        env:
+          SOURCE_PR: ${{ matrix.source_pr }}
+          CHANNEL: ${{ matrix.channel }}
+          STATUS: ${{ steps.prepare.outputs.status }}
+          BACKPORT_URL: ${{ steps.pull-request.outputs.pull-request-url || steps.prepare.outputs.url }}
+        run: |
+          {
+            echo "## Backport #${SOURCE_PR} to release/${CHANNEL}"
+            echo
+            echo "Status: ${STATUS}"
+            if [[ "${STATUS}" == "deferred" ]]; then
+              echo "Deferred until the current channel backport merges."
+            elif [[ "${STATUS}" == "already-present" ]]; then
+              echo "The source is already included; no new PR is needed."
+            fi
+            if [[ -n "${BACKPORT_URL}" ]]; then
+              echo "Pull request: ${BACKPORT_URL}"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

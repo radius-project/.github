@@ -144,14 +144,22 @@ jobs:
 
           restore_edge_files
           UNMERGED=$(git ls-files --unmerged)
-          CONFLICT=false
           if [[ -n "${UNMERGED}" ]]; then
-              echo "::warning::Content conflicts require a draft PR and manual resolution."
-              # Keep HEAD on edge. A provisional source snapshot is not a
-              # resolved merge and must not import the source commit's parents.
-              git read-tree --reset -u "${SOURCE_SHA}"
-              restore_edge_files
-              CONFLICT=true
+              echo "::error::Upmerge has content conflicts. Resolve them on the source or edge branch, then resume the release. No pull request was created."
+              git diff --name-only --diff-filter=U
+              {
+                  echo "## Upmerge requires conflict resolution"
+                  echo
+                  echo "Source: \`${SOURCE_SHA}\`; edge: \`${BASE_SHA}\`."
+                  echo
+                  echo "No provisional snapshot or draft pull request was created."
+                  echo "Resolve these conflicts before resuming:"
+                  echo
+                  echo '```text'
+                  git diff --name-only --diff-filter=U
+                  echo '```'
+              } >> "${GITHUB_STEP_SUMMARY}"
+              exit 1
           fi
 
           UNMERGED=$(git ls-files --unmerged)
@@ -174,13 +182,8 @@ jobs:
                   exit 1
                   ;;
           esac
-          if [[ "${CONFLICT}" == "true" && "${HAS_CHANGES}" == "false" ]]; then
-              echo "::error::Conflicts produced no reviewable diff; manual recovery is required."
-              exit 1
-          fi
           {
               echo "base-sha=${BASE_SHA}"
-              echo "conflict=${CONFLICT}"
               echo "has-changes=${HAS_CHANGES}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -200,14 +203,14 @@ jobs:
           branch: upmerge/${{ github.run_id }}-${{ github.run_attempt }}
           base: edge
           title: Upmerge to edge
-          draft: ${{ steps.prepare.outputs.conflict == 'true' }}
+          draft: false
           body: |
             Upmerge to edge (kicked off by @${{ github.triggering_actor }}).
 
             Source: `${{ github.ref_name }}` at `${{ github.sha }}`.
             Edge snapshot: `${{ steps.prepare.outputs.base-sha }}`.
 
-            ${{ steps.prepare.outputs.conflict == 'true' && '**Manual resolution required.** This draft is a provisional source snapshot, not a resolved merge. Other edge-only changes may be absent; restore them and resolve conflicts before marking this PR ready.' || 'Prepared the clean merged tree, preserving changes from both branches without importing source commit history.' }}
+            Prepared the clean merged tree, preserving changes from both branches without importing source commit history.
 
             These files retain their edge state, including absence or deletion:
 

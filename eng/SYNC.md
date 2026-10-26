@@ -29,6 +29,7 @@ This document describes the centralized file synchronization used across the `ra
   - [PR Status Labels](#pr-status-labels)
   - [Labels](#labels)
   - [Signed Release Upmerge](#signed-release-upmerge)
+  - [Release Backports](#release-backports)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -122,6 +123,7 @@ The sync workflow (`.github/workflows/sync.yml`) is triggered when:
 1. **AND** changes are made to any of these paths:
    - `.github/workflows/sync.yml` (the workflow itself)
    - `.github/sync.yml` (sync configuration)
+   - `.github/actions/release-backport/**` (shared helpers also used locally by Radius)
    - `sync-templates/**` (any file in sync-templates)
    - `workflow-templates/*.yaml` or `workflow-templates/*.yml`
 
@@ -350,7 +352,7 @@ Callers expose only `workflow_dispatch` and grant the reusable job `contents: re
 
 The workflow uses the caller's repository, ref and immutable `github.sha`, checks out edge, and prepares a native Git squash without importing source ancestry. The pinned create-pull-request action publishes one App-signed net-diff commit with an explicit App DCO trailer. Only the preparation step receives a committer identity; the signing action's author and committer are not overridden. The native `pull-request-commits-verified` output and returned PR details must confirm publication.
 
-A clean merge preserves both branches' changes. Conflicts confined to preserved files are resolved using edge's state without discarding other merged content. Other content conflicts produce an explicitly provisional **draft source snapshot**, which may omit edge-only changes and requires manual reconciliation. Unrelated Git failures, or conflicts producing no reviewable diff, fail the run. A genuine no-op **skips `Create pull request`**, so the coordinator does not discover an old or empty PR. Review and branch rules still apply.
+A clean merge preserves both branches' changes and opens a **ready-for-review** PR. Conflicts confined to preserved files are resolved using edge's state without discarding other merged content. Other content conflicts stop the run and list the affected files in its log and summary; no draft or provisional source snapshot is published. Resolve the conflicting changes on the source or edge branch through normal review, then retry. A rerun retains the original source SHA, so a source-branch fix requires a new workflow run; an edge fix can be picked up by a rerun. Unrelated Git failures also stop the run. A genuine no-op **skips `Create pull request`**, so the coordinator does not discover an old or empty PR. Review and branch rules still apply.
 
 Callers follow the organization's `@main` convention: new runs receive shared logic updates without another caller sync. The source commit still comes from the caller's recorded execution. [GitHub's rerun rules](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations#behavior-of-reusable-workflows-when-re-running-jobs) distinguish rerunning failed/specific jobs, which reuse the original shared commit, from rerunning all jobs, which resolves `@main` again. Historical inline runs do not adopt the new caller by retrying; recorded release receipts are not rewritten.
 
@@ -359,6 +361,28 @@ Initial rollout, while both consumer defaults are `v0.61`:
 1. Merge the shared `.github` change into `main` first, after its read-only checks pass.
 1. Bootstrap the same native callers into `v0.61` through [radius-project/docs#2058](https://github.com/radius-project/docs/pull/2058) and [radius-project/samples#2705](https://github.com/radius-project/samples/pull/2705), removing the duplicated local implementations in those consumer PRs.
 1. Review and merge the normal Sync PRs delivering callers to `edge`. Ongoing caller updates stay enrolled only on edge; future release branches inherit them when cut. Do not add permanent sync mappings for old release branches.
+
+### Release Backports
+
+[`__release-backport.yml`](../.github/workflows/__release-backport.yml) and the [Release Backport action](../.github/actions/release-backport/action.yml) maintain the shared implementation. The reusable workflow loads the action with `$/`, keeping its scripts at the same commit as the workflow. Only the native [`release-backport.yml` caller](../workflow-templates/release-backport.yml) is synced to `.github/workflows/release-backport.yaml` in **`radius`, `bicep-types-aws`, `dashboard`, and `recipes`**.
+
+These repositories develop on `main`, squash-merge source PRs, and selectively backport to existing `release/X.Y` branches. This does not enroll docs or samples: their current `vX.Y`-to-`edge` upmerge process is different. A repository using this backport model can be enrolled by adding it to the dedicated sync group; do not change the generic caller per repository.
+
+Apply `backport release/X.Y` to a PR merged into that repository's `main`. Labels may also be applied before merge. The workflow selects pending sources in main's first-parent merge order and opens one backport PR per channel at a time. Rebase-merge the reviewed backport to preserve its source title and exact cherry-pick trailer; the release-branch push starts the next queued item. Already-included source commits and verified merged backports are skipped. No branch is created, no backport is merged automatically, and closing a backport without resolving its existing automation branch requires manual reconciliation.
+
+To reconcile an existing queue from the Actions UI, run `release-backport` on `main` with `channel` in `X.Y` format. For example:
+
+```bash
+gh workflow run release-backport.yaml --repo radius-project/recipes --ref main -f channel=0.62
+```
+
+This processes the same labeled queue; it does not select unmerged PRs or infer which fixes belong in a release. Ordinary successful backports are ready for review. A conflicting backport remains a draft containing only a handoff document on the unchanged release base, not a provisional source snapshot. Follow its exact recovery commands before marking it ready.
+
+Each caller must have access to `RADIUS_RELEASE_BOT_CLIENT_ID` and `RADIUS_RELEASE_BOT_PRIVATE_KEY`, either as repository secrets or approved organization secrets. The App needs Contents, Workflows, Issues, and Pull requests write access on each enrolled repository; its token is scoped to that repository only. GitHub's job token needs only Contents, Issues, and Pull requests read. The workflow checks out trusted `main`, never a PR head, and executes the centrally maintained action. Backports retain the existing Radius source-author and DCO contract rather than replacing the author with the App for cryptographic signing. They are not the App-signed upmerge commits described above.
+
+Merge this shared implementation first, then review the normal Sync PRs in the four repositories. Create each supported channel's `backport release/X.Y` label if absent and allow rebase merges on `release/*`. Existing release branches also need the thin caller before their push events can advance the queue: label the merged caller-sync PR for those channels and merge its generated backports, or reconcile the channel manually from `main` until that bootstrap completes. New release branches inherit the caller; do not add permanent version-specific sync mappings. Retain Radius's required release-branch provenance check and all normal review rules.
+
+The three helper scripts are also synced back to Radius's `.github/scripts/` because release preparation and local checks consume them there. Their source of truth is [the shared action directory](../.github/actions/release-backport/), not the synced copies. Existing action CI exercises the JavaScript queue logic; these are script behavior checks, not workflow-YAML or caller-render tests.
 
 ---
 
