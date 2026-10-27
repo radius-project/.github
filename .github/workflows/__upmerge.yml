@@ -56,14 +56,14 @@ jobs:
           ref: edge
           token: ${{ steps.app-token.outputs.token }}
           fetch-depth: 0
-          # Fetch the immutable caller source with this short-lived token.
+          # Refresh both branch heads with this short-lived token.
           persist-credentials: true
 
       - name: Prepare upmerge
         id: prepare
         shell: bash
         env:
-          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
           PRESERVE_PATHS: ${{ inputs.preserve-paths }}
           # Git requires an identity even for --squash --no-commit.
           GIT_COMMITTER_NAME: ${{ steps.bot-details.outputs.name }}
@@ -71,8 +71,9 @@ jobs:
         run: |
           set -euo pipefail
           export GIT_LITERAL_PATHSPECS=1
-          if [[ ! "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "::error::Expected the full workflow source commit SHA."
+          if [[ "${SOURCE_REF}" != refs/heads/* ]] ||
+              ! git check-ref-format "${SOURCE_REF}"; then
+              echo "::error::Select a source branch for the upmerge, not a tag or commit."
               exit 1
           fi
 
@@ -96,19 +97,31 @@ jobs:
               exit 1
           fi
 
-          BASE_SHA=$(git rev-parse --verify HEAD)
           BRANCH=$(git symbolic-ref --short HEAD)
           STATUS=$(git status --porcelain --untracked-files=all)
           if [[ "${BRANCH}" != "edge" || -n "${STATUS}" ]]; then
               echo "::error::Upmerge preparation requires a clean edge checkout."
               exit 1
           fi
-          git fetch --no-tags origin "${SOURCE_SHA}"
-          FETCHED_SHA=$(git rev-parse --verify "FETCH_HEAD^{commit}")
-          if [[ "${FETCHED_SHA}" != "${SOURCE_SHA}" ]]; then
-              echo "::error::Fetched revision does not match the workflow source."
-              exit 1
-          fi
+          # github.sha remains the original event SHA when a run is retried.
+          git fetch --atomic --no-tags origin \
+              "+${SOURCE_REF}:refs/upmerge/source" \
+              "+refs/heads/edge:refs/remotes/origin/edge"
+          SOURCE_SHA=$(git rev-parse --verify "refs/upmerge/source^{commit}")
+          BASE_SHA=$(git rev-parse --verify "refs/remotes/origin/edge^{commit}")
+          git checkout -B edge "${BASE_SHA}"
+          {
+              echo "source-sha=${SOURCE_SHA}"
+              echo "base-sha=${BASE_SHA}"
+          } >> "${GITHUB_OUTPUT}"
+          {
+              echo "## Upmerge inputs"
+              echo
+              echo "Source: \`${SOURCE_REF#refs/heads/}\` at \`${SOURCE_SHA}\`."
+              echo "Edge snapshot: \`${BASE_SHA}\`."
+              echo
+              echo "Both branch heads were refreshed for this attempt."
+          } >> "${GITHUB_STEP_SUMMARY}"
           for revision in "${BASE_SHA}" "${SOURCE_SHA}"; do
               for path in "${preserve_paths[@]}"; do
                   entry=$(git ls-tree "${revision}" -- "${path}")
@@ -183,7 +196,6 @@ jobs:
                   ;;
           esac
           {
-              echo "base-sha=${BASE_SHA}"
               echo "has-changes=${HAS_CHANGES}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -207,7 +219,7 @@ jobs:
           body: |
             Upmerge to edge (kicked off by @${{ github.triggering_actor }}).
 
-            Source: `${{ github.ref_name }}` at `${{ github.sha }}`.
+            Source: `${{ github.ref_name }}` at `${{ steps.prepare.outputs.source-sha }}`.
             Edge snapshot: `${{ steps.prepare.outputs.base-sha }}`.
 
             Prepared the clean merged tree, preserving changes from both branches without importing source commit history.
