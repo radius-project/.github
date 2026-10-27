@@ -36,21 +36,41 @@ jobs:
       pull-requests: read
       issues: read
     outputs:
-      backports: ${{ steps.channels.outputs.backports }}
+      backports: ${{ steps.channels.outputs.result }}
     steps:
+      - name: Checkout shared backport scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: backport-tooling
+          sparse-checkout: .github/actions/release-backport
+          persist-credentials: false
+
       - name: Checkout trusted main history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+          path: repository
           fetch-depth: 0
           persist-credentials: false
 
       - name: Select pending backports
         id: channels
-        uses: $/.github/actions/release-backport
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BACKPORT_SCRIPT_PATH: ${{ github.workspace }}/backport-tooling/.github/actions/release-backport
+          CHANNEL: ${{ inputs.channel }}
         with:
-          operation: select
-          channel: ${{ inputs.channel }}
+          result-encoding: string
+          script: |
+            process.chdir(`${process.env.GITHUB_WORKSPACE}/repository`)
+            const { selectReleaseBackports } = await import(
+              `${process.env.BACKPORT_SCRIPT_PATH}/select-release-backports.mjs`
+            )
+            return JSON.stringify(await selectReleaseBackports({
+              github, context, channel: process.env.CHANNEL
+            }))
 
   backport:
     name: Backport to release/${{ matrix.channel }}
@@ -67,7 +87,19 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
+    defaults:
+      run:
+        working-directory: repository
     steps:
+      - name: Checkout shared backport scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: backport-tooling
+          sparse-checkout: .github/actions/release-backport
+          persist-credentials: false
+
       - name: Create release App token
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -85,6 +117,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+          path: repository
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: true
@@ -97,16 +130,16 @@ jobs:
 
       - name: Prepare selected backport
         id: prepare
-        uses: $/.github/actions/release-backport
-        with:
-          operation: prepare
-          github-token: ${{ steps.app-token.outputs.token }}
-          channel: ${{ matrix.channel }}
-          source-pr: ${{ matrix.source_pr }}
-          source-commit: ${{ matrix.source_commit }}
-          source-title: ${{ matrix.source_title }}
-          source-url: ${{ matrix.source_url }}
-          expected-base: ${{ matrix.expected_base }}
+        env:
+          BACKPORT_SCRIPT_PATH: ${{ github.workspace }}/backport-tooling/.github/actions/release-backport
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          CHANNEL: ${{ matrix.channel }}
+          SOURCE_PR: ${{ matrix.source_pr }}
+          SOURCE_COMMIT: ${{ matrix.source_commit }}
+          SOURCE_TITLE: ${{ matrix.source_title }}
+          SOURCE_URL: ${{ matrix.source_url }}
+          EXPECTED_BASE: ${{ matrix.expected_base }}
+        run: bash "${BACKPORT_SCRIPT_PATH}/prepare-release-backport.sh"
 
       - name: Create backport pull request
         if: steps.prepare.outputs.status == 'success' || steps.prepare.outputs.status == 'conflict'
@@ -114,6 +147,7 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
+          path: repository
           branch: ${{ steps.prepare.outputs.branch }}
           base: release/${{ matrix.channel }}
           commit-message: ${{ steps.prepare.outputs.commit-message }}

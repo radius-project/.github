@@ -313,6 +313,140 @@ test_rejects_advanced_release_branch() {
     ((++PASS))
 }
 
+test_preparation_script() {
+    local scenario="$1"
+    local expected="$2"
+    local bin="${TEST_ROOT}/bin"
+    local runner="${TEST_ROOT}/runner"
+    local outputs="${TEST_ROOT}/step-output.txt"
+    local open_backports='[]'
+    local expected_base="" status=0 log
+
+    setup_repo "$([[ "${scenario}" == conflict ]] && echo true || echo false)"
+    mkdir -p "${bin}" "${runner}"
+    : > "${outputs}"
+    case "${scenario}" in
+        fork)
+            open_backports='[{"number":1,"url":"https://example.test/pull/1","headRefName":"automation/backport-123-to-0.60","isCrossRepository":true}]'
+            ;;
+        existing)
+            open_backports='[{"number":2,"url":"https://example.test/pull/2","headRefName":"automation/backport-123-to-0.60","isCrossRepository":false}]'
+            ;;
+        deferred)
+            open_backports='[{"number":3,"url":"https://example.test/pull/3","headRefName":"automation/backport-456-to-0.60","isCrossRepository":false}]'
+            ;;
+        mixed)
+            open_backports='[{"number":1,"url":"https://example.test/pull/1","headRefName":"automation/backport-123-to-0.60","isCrossRepository":true},{"number":3,"url":"https://example.test/pull/3","headRefName":"automation/backport-456-to-0.60","isCrossRepository":false}]'
+            ;;
+        already-present)
+            git -C "${REPO}" push -q origin HEAD:refs/heads/release/0.60
+            ;;
+        orphan)
+            git -C "${REPO}" push -q origin \
+                HEAD:refs/heads/automation/backport-123-to-0.60
+            ;;
+        stale-base)
+            expected_base="$(printf '0%.0s' {1..40})"
+            ;;
+    esac
+    cat > "${bin}/gh" << 'EOF'
+#!/bin/bash
+set -euo pipefail
+if [[ "${FAIL_COLLECTION}" == true ]]; then
+    echo "injected collection failure" >&2
+    exit 42
+fi
+if [[ "$1" == api ]]; then
+    case "$2" in
+        */git/matching-refs/heads/release/0.60)
+            jq -cn --arg sha "$(git rev-parse origin/release/0.60)" \
+                '[{ref:"refs/heads/release/0.60",object:{sha:$sha}}]'
+            ;;
+        */compare/*)
+            if git merge-base --is-ancestor "${SOURCE_COMMIT}" origin/release/0.60; then
+                echo ahead
+            else
+                echo diverged
+            fi
+            ;;
+        *) echo "Unexpected API call: $*" >&2; exit 1 ;;
+    esac
+elif [[ "$1 $2" == "pr view" ]]; then
+    jq -cn --arg sha "${SOURCE_COMMIT}" \
+        '{number:123,title:"fix: source change",url:"https://example.test/pull/123",mergeCommit:{oid:$sha},mergedAt:"2026-10-26T00:00:00Z",baseRefName:"main"}'
+elif [[ "$1 $2" == "pr list" ]]; then
+    state="" filter=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --state) state="$2"; shift 2 ;;
+            --jq) filter="$2"; shift 2 ;;
+            *) shift ;;
+        esac
+    done
+    if [[ "${state}" == open ]]; then
+        jq -r "${filter}" <<< "${OPEN_BACKPORTS}"
+    else
+        echo '[]'
+    fi
+else
+    echo "Unexpected gh command: $*" >&2
+    exit 1
+fi
+EOF
+    chmod +x "${bin}/gh"
+    log="$(
+        cd "${REPO}" || exit 1
+        PATH="${bin}:${PATH}" GH="${bin}/gh" \
+            GITHUB_REPOSITORY=radius-project/recipes \
+            GITHUB_OUTPUT="${outputs}" RUNNER_TEMP="${runner}" \
+            OPEN_BACKPORTS="${open_backports}" \
+            FAIL_COLLECTION="$([[ "${scenario}" == collection-error ]] && echo true || echo false)" \
+            SOURCE_PR=123 SOURCE_COMMIT="${SOURCE_COMMIT}" \
+            SOURCE_TITLE="fix: source change" \
+            SOURCE_URL=https://example.test/pull/123 CHANNEL=0.60 \
+            EXPECTED_BASE="${expected_base}" \
+            bash "${SCRIPT_DIR}/prepare-release-backport.sh" 2>&1
+    )" || status=$?
+    if [[ "${expected}" == failure ]]; then
+        if [[ "${status}" == 0 || -s "${outputs}" ]]; then
+            fail_test "${scenario} must stop without successful outputs: ${log}"
+            return
+        fi
+    elif [[ "${status}" != 0 ]] ||
+        ! grep -Fqx "status=${expected}" "${outputs}"; then
+        fail_test "${scenario} expected ${expected}: ${log}"
+        return
+    elif [[ "${expected}" == success ]]; then
+        if ! grep -Fqx 'branch=automation/backport-123-to-0.60' "${outputs}" ||
+            ! grep -Fqx 'author=Source Author <source@example.test>' "${outputs}" ||
+            ! grep -Fqx "(cherry picked from commit ${SOURCE_COMMIT})" "${outputs}" ||
+            [[ "$(git -C "${REPO}" diff --cached --name-only)" != file.txt ]]; then
+            fail_test "${scenario} changed the preparation output contract"
+            return
+        fi
+    elif [[ "${expected}" == conflict ]]; then
+        if [[ ! -f "${runner}/release-backport/conflict-handoff.md" ]] ||
+            ! grep -Fqx 'author=' "${outputs}"; then
+            fail_test "conflict preparation must return the bot handoff"
+            return
+        fi
+    elif ! git -C "${REPO}" diff --cached --quiet; then
+        fail_test "${scenario} must leave the caller checkout unchanged"
+        return
+    fi
+    if [[ "${scenario}" == existing ]] &&
+        ! grep -Fqx 'url=https://example.test/pull/2' "${outputs}"; then
+        fail_test "existing PR URL was not returned"
+        return
+    fi
+    if [[ "${expected}" == deferred ]] &&
+        ! grep -Fqx 'url=https://example.test/pull/3' "${outputs}"; then
+        fail_test "only the same-repository PR may defer preparation"
+        return
+    fi
+    ((++PASS))
+}
+
 main() {
     TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/release-backport-test-XXXXXX")"
     REMOTE="${TEST_ROOT}/remote.git"
@@ -328,6 +462,16 @@ main() {
     test_already_present_source_is_satisfied ancestor
     test_empty_cherry_pick_without_ancestry_is_not_success
     test_rejects_advanced_release_branch
+    test_preparation_script clean success
+    test_preparation_script fork success
+    test_preparation_script existing existing
+    test_preparation_script deferred deferred
+    test_preparation_script mixed deferred
+    test_preparation_script conflict conflict
+    test_preparation_script already-present already-present
+    test_preparation_script orphan failure
+    test_preparation_script collection-error failure
+    test_preparation_script stale-base failure
 
     if ((FAIL > 0)); then
         echo "create release backport tests failed: ${PASS} passed, ${FAIL} failed"
