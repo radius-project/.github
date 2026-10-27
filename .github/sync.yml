@@ -124,6 +124,16 @@ group:
       - source: workflow-templates/upmerge-samples.yml
         dest: .github/workflows/upmerge.yaml
 
+  # Backports from main into existing release/X.Y branches.
+  - repos: |
+      radius-project/radius
+      radius-project/bicep-types-aws
+      radius-project/dashboard
+      radius-project/recipes
+    files:
+      - source: workflow-templates/release-backport.yml
+        dest: .github/workflows/release-backport.yaml
+
   # PR status labels - lifecycle labels, the read-only review signal relay, and
   # the centrally managed .github/labels.yml with the workflow that applies it.
   # Enrolled: .github, ai-extensions, dashboard, docs (edge), lab, radius,

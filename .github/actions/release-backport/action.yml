@@ -1,0 +1,200 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
+# docs: ../../../eng/SYNC.md#release-backports
+---
+name: Release Backport
+description: Select, collect, or prepare source-traceable release backports.
+author: radius-project
+
+inputs:
+  operation:
+    description: Select pending backports, collect live records, or prepare the selected backport.
+    required: true
+  github-token:
+    description: Repository token for reading PRs and fetching the selected source.
+    default: ${{ github.token }}
+  channel:
+    description: Release channel in X.Y format; selection otherwise follows the triggering event.
+    default: ""
+  explicit-prs:
+    description: Optional comma-separated merged main PRs to include when collecting.
+    default: ""
+  output-file:
+    description: Required JSON output path for the collect operation.
+    default: ""
+  source-pr:
+    description: Merged source PR number.
+    default: ""
+  source-commit:
+    description: Exact main merge commit.
+    default: ""
+  source-title:
+    description: Source PR title.
+    default: ""
+  source-url:
+    description: Source PR URL.
+    default: ""
+  expected-base:
+    description: Optional approved release-branch base for Radius release metadata.
+    default: ""
+
+outputs:
+  backports:
+    description: JSON matrix of the next pending backport in each selected channel.
+    value: ${{ steps.select.outputs.result }}
+  status:
+    description: success, conflict, already-present, existing, or deferred.
+    value: ${{ steps.build.outputs.status || steps.existing.outputs.status }}
+  url:
+    description: Existing backport or source PR URL, when no new PR is needed.
+    value: ${{ steps.existing.outputs.url }}
+  branch:
+    description: Prepared backport branch.
+    value: ${{ steps.build.outputs.branch }}
+  title:
+    description: Source PR title for the backport.
+    value: ${{ steps.build.outputs.title }}
+  author:
+    description: Original source commit author; empty for a conflict handoff.
+    value: ${{ steps.build.outputs.author }}
+  commit-message:
+    description: Commit message retaining source attribution and cherry-pick provenance.
+    value: ${{ steps.build.outputs.commit-message }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate operation
+      shell: bash
+      env:
+        OPERATION: ${{ inputs.operation }}
+      run: |
+        case "${OPERATION}" in
+          select | collect | prepare) ;;
+          *) echo "::error::operation must be select, collect, or prepare"; exit 1 ;;
+        esac
+
+    - name: Collect backport records
+      if: inputs.operation == 'collect'
+      shell: bash
+      env:
+        BACKPORT_ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        CHANNEL: ${{ inputs.channel }}
+        EXPLICIT_PRS: ${{ inputs.explicit-prs }}
+        OUTPUT_FILE: ${{ inputs.output-file }}
+      run: |
+        bash "${BACKPORT_ACTION_PATH}/collect-release-backports.sh" \
+          --repository "${GITHUB_REPOSITORY}" --channel "${CHANNEL}" \
+          --explicit-prs "${EXPLICIT_PRS}" --output "${OUTPUT_FILE}"
+
+    - name: Select pending backports
+      if: inputs.operation == 'select'
+      id: select
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        BACKPORT_ACTION_PATH: ${{ github.action_path }}
+        CHANNEL: ${{ inputs.channel }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        result-encoding: string
+        script: |
+          const { selectReleaseBackports } = await import(
+            `${process.env.BACKPORT_ACTION_PATH}/select-release-backports.mjs`
+          )
+          return JSON.stringify(await selectReleaseBackports({
+            github, context, channel: process.env.CHANNEL
+          }))
+
+    - name: Check selected backport
+      if: inputs.operation == 'prepare'
+      id: existing
+      shell: bash
+      env:
+        BACKPORT_ACTION_PATH: ${{ github.action_path }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        SOURCE_PR: ${{ inputs.source-pr }}
+        SOURCE_COMMIT: ${{ inputs.source-commit }}
+        CHANNEL: ${{ inputs.channel }}
+      run: |
+        set -euo pipefail
+        git fetch origin "${SOURCE_COMMIT}"
+        git fetch origin \
+          "refs/heads/release/${CHANNEL}:refs/remotes/origin/release/${CHANNEL}"
+        branch="automation/backport-${SOURCE_PR}-to-${CHANNEL}"
+        bash "${BACKPORT_ACTION_PATH}/collect-release-backports.sh" \
+          --repository "${GITHUB_REPOSITORY}" --channel "${CHANNEL}" \
+          --explicit-prs "${SOURCE_PR}" \
+          --output "${RUNNER_TEMP}/source-backport.json"
+        source_entry="$(
+          jq -c --argjson source_pr "${SOURCE_PR}" \
+            '[.[] | select(.source_pr == $source_pr)]' \
+            "${RUNNER_TEMP}/source-backport.json"
+        )"
+        [[ "$(jq 'length' <<< "${source_entry}")" == "1" ]] || {
+          echo "::error::Expected exactly one backport record for #${SOURCE_PR}."
+          exit 1
+        }
+        if [[ "$(jq -r '.[0].backport_merged' <<< "${source_entry}")" == "true" ]]; then
+          {
+            echo "exists=true"
+            echo "status=$(jq -r 'if .[0].already_present then "already-present" else "existing" end' <<< "${source_entry}")"
+            echo "url=$(jq -r '.[0].backport_url // .[0].source_url' <<< "${source_entry}")"
+          } >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+        result="$(
+          gh pr list --repo "${GITHUB_REPOSITORY}" --state open --limit 1000 \
+            --base "release/${CHANNEL}" --json number,url,headRefName,isCrossRepository \
+            --jq '[.[] | select(.isCrossRepository == false and (.headRefName | startswith("automation/backport-")))][0] // empty'
+        )"
+        if [[ -n "${result}" ]]; then
+          {
+            echo "exists=true"
+            echo "url=$(jq -r .url <<< "${result}")"
+            echo "status=$(jq -r --arg branch "${branch}" 'if .headRefName == $branch then "existing" else "deferred" end' <<< "${result}")"
+          } >> "${GITHUB_OUTPUT}"
+          exit 0
+        fi
+        remote_sha="$(git ls-remote origin "refs/heads/${branch}" | awk '{print $1}')"
+        if [[ -n "${remote_sha}" ]]; then
+          echo "::error::Branch ${branch} exists without an open PR. Inspect it before deleting or recreating the backport."
+          exit 1
+        fi
+        echo "exists=false" >> "${GITHUB_OUTPUT}"
+
+    - name: Prepare backport
+      if: inputs.operation == 'prepare' && steps.existing.outputs.exists == 'false'
+      id: build
+      shell: bash
+      env:
+        BACKPORT_ACTION_PATH: ${{ github.action_path }}
+        SOURCE_PR: ${{ inputs.source-pr }}
+        SOURCE_COMMIT: ${{ inputs.source-commit }}
+        SOURCE_TITLE: ${{ inputs.source-title }}
+        SOURCE_URL: ${{ inputs.source-url }}
+        CHANNEL: ${{ inputs.channel }}
+        EXPECTED_BASE: ${{ inputs.expected-base }}
+      run: |
+        set -euo pipefail
+        output_dir="${RUNNER_TEMP}/release-backport"
+        args=(
+          --source-pr "${SOURCE_PR}" --source-commit "${SOURCE_COMMIT}"
+          --source-title "${SOURCE_TITLE}" --source-url "${SOURCE_URL}"
+          --channel "${CHANNEL}" --output-dir "${output_dir}"
+        )
+        if [[ -n "${EXPECTED_BASE}" ]]; then
+          args+=(--expected-base "${EXPECTED_BASE}")
+        fi
+        bash "${BACKPORT_ACTION_PATH}/create-release-backport.sh" "${args[@]}"
+        {
+          echo "status=$(<"${output_dir}/status.txt")"
+          echo "branch=$(<"${output_dir}/branch.txt")"
+          echo "title=$(<"${output_dir}/title.txt")"
+          echo "author=$(<"${output_dir}/author.txt")"
+        } >> "${GITHUB_OUTPUT}"
+        delimiter="release_commit_$(openssl rand -hex 16)"
+        {
+          echo "commit-message<<${delimiter}"
+          cat "${output_dir}/commit-message.txt"
+          echo "${delimiter}"
+        } >> "${GITHUB_OUTPUT}"
