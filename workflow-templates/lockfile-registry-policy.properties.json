@@ -1,0 +1,7 @@
+{
+  "name": "Lockfile Registry Policy",
+  "description": "Reject configurable registry URL patterns in lockfiles and package-source configuration across package ecosystems.",
+  "iconName": "package-dependencies",
+  "categories": ["dependency-management"],
+  "filePatterns": []
+}

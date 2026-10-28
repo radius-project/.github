@@ -10,3 +10,7 @@
 ## Dependabot failures
 
 [`dependabot-failures.yml`](./dependabot-failures.yml) runs daily and keeps one open `test-failure` issue listing the Dependabot updates whose latest run failed, with links to the runs and the error types from their logs. A failed Dependabot update opens no pull request, so without this the failure goes unnoticed. See the [Dependabot Failures documentation](../.github/actions/dependabot-failures/README.md) for how the issue is kept up to date, configuration, and testing.
+
+## Lockfile registry policy
+
+[`lockfile-registry-policy.yml`](./lockfile-registry-policy.yml) checks tracked lockfiles and package-source configuration across npm, Yarn, pnpm, Python, .NET, and other package ecosystems. The reusable workflow defaults to blocking `*.pkgs.visualstudio.com` and `pkgs.dev.azure.com`; target repositories can replace the list using the `LOCKFILE_BLOCKED_REGISTRIES` Actions variable without editing the synced caller. The existing Sync workflow distributes the caller to the unarchived repositories listed in its [`.github/sync.yml` group](../.github/sync.yml). See the [Lockfile Registry Policy documentation](../.github/actions/lockfile-registry-policy/README.md) for wildcard semantics, coverage, limitations, and rollout prerequisites.

@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://www.schemastore.org/github-action.json
+---
+name: Lockfile Registry Policy
+description: Reject blocked registry URLs in tracked lockfiles and package-source configuration.
+author: radius-project
+
+inputs:
+  blocked-registries:
+    description: Newline-separated hostname or HTTP(S) URL globs. Supports * and ? wildcards.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check dependency sources
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        REGISTRY_POLICY_ACTION_PATH: ${{ github.action_path }}
+        REGISTRY_POLICY_BLOCKED_REGISTRIES: ${{ inputs.blocked-registries }}
+      with:
+        script: |
+          const { default: run } = await import(
+            `${process.env.REGISTRY_POLICY_ACTION_PATH}/lockfile-registry-policy.mjs`
+          )
+          await run({ core }, {
+            cwd: process.env.GITHUB_WORKSPACE,
+            blockedRegistries: process.env.REGISTRY_POLICY_BLOCKED_REGISTRIES
+          })
