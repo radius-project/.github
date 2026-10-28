@@ -30,6 +30,7 @@ This document describes the centralized file synchronization used across the `ra
   - [Labels](#labels)
   - [Signed Release Upmerge](#signed-release-upmerge)
   - [Release Backports](#release-backports)
+  - [Lockfile Registry Policy](#lockfile-registry-policy)
 - [Adding New Files to Sync](#adding-new-files-to-sync)
   - [Step 1: Add the Source File](#step-1-add-the-source-file)
   - [Step 2: Update Sync Configuration](#step-2-update-sync-configuration)
@@ -386,6 +387,14 @@ All backport implementation and behavior tests live only in [the shared action d
 Radius calls `radius-project/.github/.github/actions/release-backport@main` directly with `operation: collect`, `channel`, and `output-file`; preparation may also pass comma-separated `explicit-prs` and its App token through `github-token`. The caller checks out trusted main history first. The action writes the same JSON record array used by the shared backport workflow. Radius's own plan validator consumes that file with `--backports-file` and still compares it with the approved plan; it does not contain a second collection implementation or download standalone helper scripts.
 
 Run `node --test .github/actions/*/*.test.mjs` in this repository with Node.js, Bash, Git, and jq to exercise the queue, collection, and cherry-pick behavior. Existing action CI runs the same command, including the relocated shell fixtures. These are action business-logic checks, not workflow-YAML or caller-render tests.
+
+### Lockfile Registry Policy
+
+[`__lockfile-registry-policy.yml`](../.github/workflows/__lockfile-registry-policy.yml) checks registry references in tracked lockfiles and package-source configuration, using the [shared action](../.github/actions/lockfile-registry-policy/README.md) from the same commit. The defaults block `*.pkgs.visualstudio.com` and `pkgs.dev.azure.com`. Repositories can replace the list using the `LOCKFILE_BLOCKED_REGISTRIES` Actions variable; hostname and HTTP(S) URL patterns support `*` and `?`.
+
+The lockfile registry policy group in [`.github/sync.yml`](../.github/sync.yml) enrolls **all currently unarchived organization repositories**. The existing [Sync workflow](../.github/workflows/sync.yml) distributes [the thin caller](../workflow-templates/lockfile-registry-policy.yml) through its normal pull requests and `repo-sync` branch prefix; no separate sync workflow is needed. `docs` and `samples` retain their `edge` targets, while other repositories use their default branches. Other shared-file groups are unchanged.
+
+Merge the shared implementation first, then merge the generated downstream sync PRs to activate checks. The Files Sync App must have access to every listed repository, including private and internal repositories, and permission to update workflow files. Maintain the group's repository list as repositories are added or archived. See the action documentation for package-manager coverage, override precedence, binary-file behavior, and the limits of checking committed source references without restoring dependencies.
 
 ---
 
