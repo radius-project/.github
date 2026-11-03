@@ -19,6 +19,8 @@ jobs:
       contents: read
     env:
       CUE_VERSION: v0.15.4
+      # SHA-256 of cue_${CUE_VERSION}_linux_amd64.tar.gz from the CUE release.
+      CUE_SHA256: 4709f0d3e9988b82192a205953fefdbb3637317a1cef63d84fe65b7b92ef95a3
       SCHEMA_VERSION: v2.2.0
       SCHEMA_SHA256: 4e4b61470b5484fc8969f2a8a77ffbe0712a7c8a870c2079188f246c14cd58b1
       PARENT_URL: https://raw.githubusercontent.com/radius-project/.github/main/security-insights.yml
@@ -29,7 +31,16 @@ jobs:
           persist-credentials: false
 
       - name: Install CUE
-        run: go install "cuelang.org/go/cmd/cue@${CUE_VERSION}"
+        run: |
+          archive="cue_${CUE_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            "https://github.com/cue-lang/cue/releases/download/${CUE_VERSION}/${archive}" \
+            --output "${RUNNER_TEMP}/${archive}"
+          echo "${CUE_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check -
+          mkdir -p "${RUNNER_TEMP}/cue"
+          tar --extract --gzip --file "${RUNNER_TEMP}/${archive}" \
+            --directory "${RUNNER_TEMP}/cue" cue
+          echo "${RUNNER_TEMP}/cue" >> "${GITHUB_PATH}"
 
       - name: Download schema
         run: |
@@ -40,19 +51,25 @@ jobs:
 
       - name: Validate Security Insights
         run: |
-          "$(go env GOPATH)/bin/cue" vet -d '#SecurityInsights' \
+          cue vet -d '#SecurityInsights' \
             "${RUNNER_TEMP}/schema.cue" security-insights.yml
 
-      # Child manifests must inherit from the organization parent, which is
-      # validated as well. Manifests without project-si-source skip this step.
       - name: Validate parent
+        shell: bash
         run: |
           declared_parent=$(
-            "$(go env GOPATH)/bin/cue" export security-insights.yml --out json |
+            cue export security-insights.yml --out json |
               jq --raw-output '.header["project-si-source"] // empty'
           )
           if [[ -z "${declared_parent}" ]]; then
-            echo "No header.project-si-source declared; skipping parent validation."
+            manifest_url=$(
+              cue export security-insights.yml --out json | jq --raw-output '.header.url'
+            )
+            if [[ "${manifest_url}" != "${PARENT_URL}" ]]; then
+              echo "Set header.project-si-source to ${PARENT_URL}" >&2
+              exit 1
+            fi
+            echo "This is the parent manifest; skipping parent validation."
             exit 0
           fi
           if [[ "${declared_parent}" != "${PARENT_URL}" ]]; then
@@ -61,6 +78,6 @@ jobs:
           fi
           curl --fail --silent --show-error --location \
             "${PARENT_URL}" --output "${RUNNER_TEMP}/parent-security-insights.yml"
-          "$(go env GOPATH)/bin/cue" vet -d '#SecurityInsights' \
+          cue vet -d '#SecurityInsights' \
             "${RUNNER_TEMP}/schema.cue" \
             "${RUNNER_TEMP}/parent-security-insights.yml"

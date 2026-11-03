@@ -264,16 +264,16 @@ Files in `.github/workflows/` that are intended to be **reusable workflows** (ca
 
 ### Examples
 
-| Workflow                  | Description                                   |
-|---------------------------|-----------------------------------------------|
-| `__dependency-review.yml` | Runs dependency scanning with standard config |
-| `__lint.yml`              | Shared linting workflow                       |
-| `__build.yml`             | Shared build workflow                         |
-| `__pr-author.yml`         | Assigns unassigned human PRs to their author  |
-| `__pr-status-labels.yml`  | Applies PR lifecycle labels                   |
-| `__pr-holds.yml`          | Fails when a PR carries a manual hold label   |
-| `__labels.yml`            | Applies a repository's synced labels file     |
-| `__upmerge.yml`           | Creates signed release-to-edge net-diff PRs    |
+| Workflow                           | Description                                         |
+|------------------------------------|-----------------------------------------------------|
+| `__dependency-review.yml`          | Runs dependency scanning with standard config       |
+| `__lint.yml`                       | Shared linting workflow                             |
+| `__build.yml`                      | Shared build workflow                               |
+| `__pr-author.yml`                  | Assigns unassigned human PRs to their author        |
+| `__pr-status-labels.yml`           | Applies PR lifecycle labels                         |
+| `__pr-holds.yml`                   | Fails when a PR carries a manual hold label         |
+| `__labels.yml`                     | Applies a repository's synced labels file           |
+| `__upmerge.yml`                    | Creates signed release-to-edge net-diff PRs         |
 | `__validate-security-insights.yml` | Validates a repository's Security Insights manifest |
 
 ### Workflow Relationship Diagram
@@ -400,9 +400,11 @@ Merge the shared implementation first, then merge the generated downstream sync 
 
 ### Security Insights Validation
 
-Security Insights validation is maintained in [the reusable workflow](../.github/workflows/__validate-security-insights.yml) and exposed through [a thin caller template](../workflow-templates/validate-security-insights.yml). It validates the repository's `security-insights.yml` against the pinned [OpenSSF Security Insights](https://github.com/ossf/security-insights) schema. When the manifest declares `header.project-si-source`, the workflow requires it to be this repository's [project-level manifest](../security-insights.yml) and validates that manifest too.
+Security Insights validation is maintained in [the reusable workflow](../.github/workflows/__validate-security-insights.yml) and exposed through [a thin caller template](../workflow-templates/validate-security-insights.yml). It installs the pinned CUE release binary after verifying its SHA-256 checksum and validates the repository's `security-insights.yml` against the checksum-verified [OpenSSF Security Insights](https://github.com/ossf/security-insights) schema. Update `CUE_SHA256` together with `CUE_VERSION` when upgrading CUE. Child manifests must set `header.project-si-source` to this repository's [project-level manifest](../security-insights.yml), which is validated too. Only the parent manifest, identified by its `header.url`, may omit that link.
 
 The dedicated Security Insights group in `.github/sync.yml` enrolls only repositories that publish a `security-insights.yml` manifest, currently `radius-project/.github` and `radius-project/radius`. The workflow fails when the manifest is missing, so add a repository to that group only when it publishes one.
+
+For the initial rollout, merge [radius-project/radius#13311](https://github.com/radius-project/radius/pull/13311) first, keeping its standalone validator until the shared workflow is available. Then merge [radius-project/.github#45](https://github.com/radius-project/.github/pull/45) and the generated sync PRs. Sync replaces each standalone validator at the same path with the shared caller; do not remove the Radius validator in advance.
 
 ---
 
