@@ -58,6 +58,10 @@ group:
           team_overrides:
             blog: docs
             website: docs
+          # Extra dependency paths where on-call can also approve changes.
+          oncall_paths:
+            bicep-types-aws:
+              - /bicep-types
 
       - source: workflow-templates/dependency-review.yml
         dest: .github/workflows/dependency-review.yml
