@@ -20,6 +20,10 @@
 
 # Dependency files - on-call can also approve these (Dependabot, etc.)
 
+{% for path in (oncall_paths[repo_name] if oncall_paths else []) -%}
+{{ path }} {{ maintainers }} {{ approvers }} {{ oncall }}
+
+{% endfor -%}
 # Version managers (language-agnostic)
 **/.tool-versions                  {{ maintainers }} {{ approvers }} {{ oncall }}
 **/mise.toml                       {{ maintainers }} {{ approvers }} {{ oncall }}
