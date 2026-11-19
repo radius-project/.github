@@ -336,9 +336,7 @@ group:
           ecosystems:
             - type: github-actions
             - type: gomod
-              directory: /radblog
             - type: npm
-              directory: /radblog
 
   - repos: |
       radius-project/bicep-types-aws
