@@ -338,9 +338,9 @@ Repositories must not edit their synced `.github/labels.yml`; change the templat
 
 ### Signed Release Upmerge
 
-Release upmerge logic lives inline in [`__upmerge.yml`](../.github/workflows/__upmerge.yml). Only the thin native [docs caller](../workflow-templates/upmerge-docs.yml) and [samples caller](../workflow-templates/upmerge-samples.yml) are synced as-is, to **`.github/workflows/upmerge.yaml`**; the release coordinator depends on that filename and the inner step name **`Create pull request`**. The shared implementation is not copied into consumer repositories.
+Release upmerge logic lives inline in [`__upmerge.yml`](../.github/workflows/__upmerge.yml). The thin native [samples caller](../workflow-templates/upmerge-samples.yml) is synced as-is to **`.github/workflows/upmerge.yaml`**; the release coordinator depends on that filename and the inner step name **`Create pull request`**. The shared implementation is not copied into consumer repositories.
 
-The dedicated mappings in `.github/sync.yml` enroll only **`radius-project/docs@edge`** and **`radius-project/samples@edge`**. Each caller passes the `preserve-paths` input directly: docs preserves `docs/config.toml` and `docs/layouts/partials/hooks/body-end.html`; samples preserves `bicepconfig.json`. Manage those input values in the native caller YAML here, not in the synced caller downstream.
+The dedicated mapping in `.github/sync.yml` enrolls only **`radius-project/samples@edge`**. Its caller passes `bicepconfig.json` as the `preserve-paths` input. Manage that input in the native caller YAML here, not in the synced caller downstream. Docs no longer uses upmerge after its GitHub Pages migration.
 
 | Caller parameter | Contract |
 | --- | --- |
@@ -356,17 +356,13 @@ A clean merge preserves both branches' changes and opens a **ready-for-review** 
 
 Callers follow the organization's `@main` convention: new runs receive shared logic updates without another caller sync. Workflow-code selection is separate from the branch-content refresh above. [GitHub's rerun rules](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations#behavior-of-reusable-workflows-when-re-running-jobs) distinguish rerunning failed/specific jobs, which reuse the first attempt's shared-workflow commit, from rerunning all jobs, which resolves `@main` again. For a run created before the fresh-head behavior was deployed, choose **Re-run all jobs** to load it; a failed-job retry can still execute the old implementation. Runs created with the new implementation refresh both content heads on every retry. Historical inline runs do not adopt the new caller by retrying; recorded release receipts are not rewritten.
 
-Initial rollout, while both consumer defaults are `v0.61`:
-
-1. Merge the shared `.github` change into `main` first, after its read-only checks pass.
-1. Bootstrap the same native callers into `v0.61` through [radius-project/docs#2058](https://github.com/radius-project/docs/pull/2058) and [radius-project/samples#2705](https://github.com/radius-project/samples/pull/2705), removing the duplicated local implementations in those consumer PRs.
-1. Review and merge the normal Sync PRs delivering callers to `edge`. Ongoing caller updates stay enrolled only on edge; future release branches inherit them when cut. Do not add permanent sync mappings for old release branches.
+Caller updates stay enrolled only on edge; future samples release branches inherit them when cut. Do not add permanent sync mappings for old release branches.
 
 ### Release Backports
 
 [`__release-backport.yml`](../.github/workflows/__release-backport.yml) and the [Release Backport action](../.github/actions/release-backport/action.yml) maintain the shared implementation. The reusable workflow loads the action with `$/`, keeping its scripts at the same commit as the workflow. Only the native [`release-backport.yml` caller](../workflow-templates/release-backport.yml) is synced to `.github/workflows/release-backport.yaml` in **`radius`, `bicep-types-aws`, `dashboard`, and `recipes`**.
 
-These repositories develop on `main`, squash-merge source PRs, and selectively backport to existing `release/X.Y` branches. This does not enroll docs or samples: their current `vX.Y`-to-`edge` upmerge process is different. A repository using this backport model can be enrolled by adding it to the dedicated sync group; do not change the generic caller per repository.
+These repositories develop on `main`, squash-merge source PRs, and selectively backport to existing `release/X.Y` branches. This does not enroll docs or samples: samples uses `vX.Y`-to-`edge` upmerge and docs uses a different release process. A repository using this backport model can be enrolled by adding it to the dedicated sync group; do not change the generic caller per repository.
 
 Apply `backport release/X.Y` to a PR merged into that repository's `main`. Labels may also be applied before merge. The workflow selects pending sources in main's first-parent merge order and opens one backport PR per channel at a time. Rebase-merge the reviewed backport to preserve its source title and exact cherry-pick trailer; the release-branch push starts the next queued item. Already-included source commits and verified merged backports are skipped. No branch is created, no backport is merged automatically, and closing a backport without resolving its existing automation branch requires manual reconciliation.
 
