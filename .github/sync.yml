@@ -142,12 +142,6 @@ group:
   # Signed release upmerge - native callers only; shared implementation stays
   # here. Keep the destination filename used by the release coordinator.
   - repos: |
-      radius-project/docs@edge
-    files:
-      - source: workflow-templates/upmerge-docs.yml
-        dest: .github/workflows/upmerge.yaml
-
-  - repos: |
       radius-project/samples@edge
     files:
       - source: workflow-templates/upmerge-samples.yml
@@ -392,13 +386,9 @@ group:
         template:
           ecosystems:
             - type: github-actions
-              ignore:
-                - dependency-name: "Azure/static-web-apps-deploy"
             - type: devcontainers
             - type: gomod
-              directory: /docs
             - type: npm
-              directory: /docs
 
   - repos: |
       radius-project/samples@edge
